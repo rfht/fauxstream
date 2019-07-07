@@ -1,0 +1,301 @@
+#!/bin/sh
+########
+# Copyright (c) 2018-2019 Thomas Frohwein <11335318+rfht@users.noreply.github.com>
+#
+# Permission to use, copy, modify, and distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+########
+
+
+############
+# TODO:
+############
+# - add mention of $DISPLAY variable for the recording?
+# - AFAIK '-preset ultrafast' is specific to libx264 and needs to be disabled
+#   for use of other codecs
+# - get default framerate from xrandr? same for resolution - default to desktop
+#   resolution?
+# - mention need to stop recording with Ctrl-C??
+# - add highpass=f=200,lowpass=f=3000
+# - document default resolution (if no window name provided) of 1920x1080
+# - document that if -n is not given, will default to root window
+# - document windowname (-n) needs to be in "" if multiple words
+# - document that window needs to be visible/on top
+# - link for finding twitch servers:
+#   http://bashtech.net/twitch/ingest.php
+# - does -s option need to be in "" ? -> should not be needed
+# - document that compositor has negative effect on smoothness
+# - framerate 29 seems to be better than 30 in regads to Twitch stream health
+# - should be either resolution (-r) (+ offset (-o)), window name (-n), or fullscreen (-fullscreen)
+#   -> should ideally default to geometry with default of 1280x720+0+0
+# - document '-m' turns on recording from mic
+# - '-m' currently uses hardcoded snd/0
+# - fix '-fullscreen' parameter (not working correctly)
+# - may not need as many 'thread_queue_size options, but definitely for the -f sndio inputs
+# - Cryptark crashes/hangs on this Ryzen 7 2700
+# - add '-s $OUTRES' ??
+# - -m and -noaudio should be mutually exclusive
+###########
+
+###########
+# LESSONS LEARNED
+###########
+# - audio offset needs to be applied on the audio in the second ffmpeg,
+#   right of the pipe. This clearly worked as opposed to left of the pipe
+#   with Rogue Legacy recording at 900p 60fps.
+
+USAGE="Usage: `basename $0` [-m] [-a audiooffset] [-n window_name] [-c codec] [-b bitrate] [-r resolution] [-o offset] [-fullscreen] [-s <scale_x>:<scale_y>] [-f framerate] [-v volume_adjustment] [-vmic mic_volume] [-vmon monitor_volume] [-t threads ] [-noaudio] [-crf crf] <rtmp url>"
+
+# Parse arguments based on http://www.shelldorado.com/goodcoding/cmdargs.html
+
+filename=
+windowname=
+resolution=
+offset=
+widthline=
+widthval=
+heightline=
+heightval=
+xline=
+xval=0
+yline=
+yval=0
+videocodec=
+volume=
+framerate=
+wininfoargs=
+noaudio=0
+bitrate=
+bufsize=
+scaleres=
+threads=
+gop=
+fullscreen=0
+mic=0
+volume_mic=
+volume_mon=
+hilopass=",lowpass=3000,highpass=200,afftdn"
+# default to 300ms which at least on my system seems to be the delay
+# when recording both audio streams, adjusting the volume, and
+# merging them
+audiooffset=0.0
+
+# FIXME: set up getopt(1) use
+#args=`getopt abo: $*`
+#if [ $? -ne 0 ]
+#then
+	#echo 'Usage: ...'
+	#exit 2
+#fi
+#set -- $args
+#while [ $# -ne 0 ]
+#do
+	#case "$1"
+	#in
+		#-a|-b)
+			#flag="$1"; shift;;
+		#-o)
+			#oarg="$2"; shift; shift;;
+		#--)
+			#shift; break;;
+	#esac
+#done
+
+if [[ $# -eq 0 ]];then
+	echo $USAGE; exit 0
+fi
+
+while [[ $# -gt 0 ]]
+do
+	case "$1" in
+		-n) windowname="$2"; shift;;
+		-a) audiooffset="$2"; shift;;
+		-c) videocodec="$2"; shift;;
+		-crf) crf="$2"; shift;;
+		-v) volume="$2"; shift;;
+		-r) resolution="$2"; shift;;
+		-o) offset="$2"; shift;;
+		-f) framerate="$2"; shift;;
+		-noaudio) noaudio=1;;
+		-fullscreen) fullscreen=1;;
+		-m) mic=1;;
+		-vmic) volume_mic="$2"; shift;;
+		-vmon) volume_mon="$2"; shift;;
+		-hl) hilopass="";;
+		-b) bitrate="$2"; shift;;
+		-s) scaleres="$2"; shift;;
+		-t) threads="$2"; shift;;
+		-h) echo $USAGE; exit 0;;
+		-*) echo $USAGE; exit 0;;
+		*) filename="$1"; break;;
+	esac
+	shift
+done
+
+# set defaults if not specified in arguments
+if [[ -z "$framerate" ]];then
+	framerate=30
+fi
+if [[ -z "$videocodec" ]];then
+	videocodec=libx264
+fi
+if [[ -z "$volume" ]];then
+	volume=1.0
+fi
+if [[ -z "$threads" ]];then
+	# -t 0 is the default and uses as many threads as available/cores
+	threads=0
+fi
+if [[ -z "$filename" ]];then
+	echo $USAGE; exit 0
+fi
+if [[ -z "$bitrate" ]];then
+	bitrate=3500
+fi
+if [[ -z "$resolution" ]];then
+	resolution=1280x720
+fi
+if [[ -z "$volume_mic" ]];then
+        volume_mic=1.0
+fi
+if [[ -z "$volume_mon" ]];then
+	volume_mon=1.0
+fi
+
+bufsize=`expr $bitrate \* 2`
+gop=`expr $framerate \* 2`
+
+if [[ -n "$scaleres" ]];then
+	scaleres="scale=${scaleres},"
+fi
+
+# if -n was used, overwrite resolution with window parameters
+if [[ -n "$windowname" ]];then
+	xline=`xwininfo -name "$windowname" | grep "Absolute upper-left X"`
+	yline=`xwininfo -name "$windowname" | grep "Absolute upper-left Y"`
+	widthline=`xwininfo -name "$windowname" | grep "Width:"`
+	heightline=`xwininfo -name "$windowname" | grep "Height:"`
+	xval=`echo "$xline" | cut -f 7 -d " "`
+	yval=`echo "$yline" | cut -f 7 -d " "`
+	# width and height need to be multiples of 2
+	widthval=`echo "$widthline" | cut -f 4 -d " "`
+	if [[ `expr $widthval % 2` -eq 1 ]]; then
+		widthval=`expr $widthval + 1`
+	fi
+	heightval=`echo "$heightline" | cut -f 4 -d " "`
+	if [[ `expr $heightval % 2` -eq 1 ]]; then
+		heightval=`expr $heightval + 1`
+	fi
+	resolution="${widthval}x${heightval}"
+	offset="+${xval},${yval}"
+fi
+
+echo "Press Ctrl+C to stop recording\n"
+
+BASE="\
+-hide_banner \
+-thread_queue_size 512 \
+-threads $threads"
+
+VIDEO="-video_size $resolution \
+-thread_queue_size 512 \
+-f x11grab \
+-i $DISPLAY$offset \
+-r $framerate \
+-c:v $videocodec \
+-vb ${bitrate}k \
+-minrate ${bitrate}k \
+-maxrate ${bitrate}k \
+-bufsize ${bufsize}k \
+-preset ultrafast \
+-vf "${scaleres}format=yuv420p" \
+-g $gop \
+-keyint_min $framerate"
+
+AUDIOMERGE="volume=$volume_mic,aformat=channel_layouts=stereo$hilopass[l];[1]volume=$volume_mon,aformat=channel_layouts=stereo[m];[l][m]amerge=inputs=2[a]"
+
+#FIXME: $AUDIO doesn't seem to be used at the moment
+if [ $noaudio -lt 1 ]; then
+	AUDIO="-f nut pipe:1 | \
+	ffmpeg \
+	$BASE \
+	-thread_queue_size 512 \
+	-f nut -i pipe:0 \
+	-thread_queue_size 512 \
+	-f sndio \
+	-itsoffset $audiooffset \
+	-i snd/0 \
+	-thread_queue_size 512 \
+	-f sndio \
+	-itsoffset $audiooffset \
+	-i snd/0.mon \
+	-filter_complex \
+	\"[1]${AUDIOMERGE};[a]aresample=async=1[b]\" \
+	-map 0:v:0 -map '[b]' \
+	-c:v copy -c:a pcm_s16le \
+	-thread_queue_size 512 \
+	-f nut pipe:1 | \
+	ffmpeg \
+	$BASE \
+	-thread_queue_size 512 \
+	-f nut -i pipe:0 \
+	-c:v copy -c:a aac -b:a 160k"
+fi
+if [ $noaudio -lt 1 -a $mic -lt 1 ]; then
+	AUDIO="-thread_queue_size 512 \
+	-f nut pipe:1 | \
+	ffmpeg \
+	$BASE \
+	-thread_queue_size 512 \
+	-f nut -i pipe:0 \
+	-thread_queue_size 512 \
+	-f sndio \
+	-itsoffset $audiooffset \
+	-i snd/0.mon \
+	-af aresample=async=1
+	-c:v copy -c:a aac -b:a 160k"
+fi
+
+# if no mic (= no -m), only record from snd/0.mon
+#	and the only filter is aresample=async=1
+
+# if noaudio, everything after 1st ffmpeg empty, and no need for -map
+# AUDIO=""
+
+# if [[ $noaudio -gt 0 ]];then
+# elif [[ $mic -lt 1 ]];then
+	# -itsoffset $audiooffset \
+	# -f sndio -i snd/0.mon \
+	# -af aresample=async=1 \
+	# -map 0:v:0 -map 1:a:0 -c:v copy -c:a aac -q:a 2 -ac 2 \
+	# -f flv "$filename"
+# else
+
+# ffmpeg $BASE $VIDEO $AUDIO -f nut pipe:1 | \
+# ffmpeg $BASE -f nut -i pipe:0 -vsync 0 \
+# -f sndio -i snd/0.mon -af aresample=async=1000 -c:v copy -c:a aac \
+# -f nut "$filename"
+
+if [ $noaudio -lt 1 -a $mic -lt 1 ]; then
+	#only monitoring stream
+	ffmpeg $BASE -f sndio -i snd/0.mon -c:a aac -f nut pipe:1 | \
+	ffmpeg $BASE -f nut -itsoffset $audiooffset -i pipe:0 $VIDEO -c:a copy -f flv "$filename"
+elif [ $noaudio -lt 1 ]; then
+	#mon + mic stream
+	ffmpeg $BASE -thread_queue_size 512 -f sndio -i snd/0 \
+	-thread_queue_size 512 -f sndio -i snd/0.mon \
+	-filter_complex "[0]${AUDIOMERGE}" -map '[a]' -c:a aac -f nut pipe:1 | \
+	ffmpeg $BASE -thread_queue_size 512 -f nut -itsoffset $audiooffset -i pipe:0 $VIDEO -c:a copy -f flv "$filename"
+else
+	#no audio
+	ffmpeg $BASE $VIDEO -f flv "$filename"
+fi
