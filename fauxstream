@@ -53,7 +53,7 @@
 #   right of the pipe. This clearly worked as opposed to left of the pipe
 #   with Rogue Legacy recording at 900p 60fps.
 
-USAGE="Usage: `basename $0` [-m] [-a audiooffset] [-n window_name] [-c codec] [-b bitrate] [-r resolution] [-o offset] [-fullscreen] [-s <scale_x>:<scale_y>] [-f framerate] [-v volume_adjustment] [-vmic mic_volume] [-vmon monitor_volume] [-t threads ] [-noaudio] [-crf crf] <rtmp url>"
+USAGE="Usage: `basename $0` [-m] [-d mic_device] [-a audiooffset] [-n window_name] [-c codec] [-b bitrate] [-r resolution] [-o offset] [-fullscreen] [-s <scale_x>:<scale_y>] [-f framerate] [-v volume_adjustment] [-vmic mic_volume] [-vmon monitor_volume] [-t threads ] [-noaudio] [-crf crf] <rtmp url>"
 
 # Parse arguments based on http://www.shelldorado.com/goodcoding/cmdargs.html
 
@@ -84,6 +84,7 @@ mic=0
 volume_mic=
 volume_mon=
 hilopass=",lowpass=3000,highpass=200,afftdn"
+mic_device=snd/0
 # default to 300ms which at least on my system seems to be the delay
 # when recording both audio streams, adjusting the volume, and
 # merging them
@@ -119,22 +120,23 @@ do
 	case "$1" in
 		-n) windowname="$2"; shift;;
 		-a) audiooffset="$2"; shift;;
+		-b) bitrate="$2"; shift;;
 		-c) videocodec="$2"; shift;;
 		-crf) crf="$2"; shift;;
+		-d) mic_device="$2"; shift;;
+		-f) framerate="$2"; shift;;
+		-fullscreen) fullscreen=1;;
+		-h) echo $USAGE; exit 0;;
+		-hl) hilopass="";;
+		-m) mic=1;;
+		-noaudio) noaudio=1;;
+		-o) offset="$2"; shift;;
 		-v) volume="$2"; shift;;
 		-r) resolution="$2"; shift;;
-		-o) offset="$2"; shift;;
-		-f) framerate="$2"; shift;;
-		-noaudio) noaudio=1;;
-		-fullscreen) fullscreen=1;;
-		-m) mic=1;;
-		-vmic) volume_mic="$2"; shift;;
-		-vmon) volume_mon="$2"; shift;;
-		-hl) hilopass="";;
-		-b) bitrate="$2"; shift;;
 		-s) scaleres="$2"; shift;;
 		-t) threads="$2"; shift;;
-		-h) echo $USAGE; exit 0;;
+		-vmic) volume_mic="$2"; shift;;
+		-vmon) volume_mon="$2"; shift;;
 		-*) echo $USAGE; exit 0;;
 		*) filename="$1"; break;;
 	esac
@@ -233,7 +235,7 @@ if [ $noaudio -lt 1 ]; then
 	-thread_queue_size 512 \
 	-f sndio \
 	-itsoffset $audiooffset \
-	-i snd/0 \
+	-i "$mic_device" \
 	-thread_queue_size 512 \
 	-f sndio \
 	-itsoffset $audiooffset \
@@ -291,7 +293,7 @@ if [ $noaudio -lt 1 -a $mic -lt 1 ]; then
 	ffmpeg $BASE -f nut -itsoffset $audiooffset -i pipe:0 $VIDEO -c:a copy -f flv "$filename"
 elif [ $noaudio -lt 1 ]; then
 	#mon + mic stream
-	ffmpeg $BASE -thread_queue_size 512 -f sndio -i snd/0 \
+	ffmpeg $BASE -thread_queue_size 512 -f sndio -i "$mic_device" \
 	-thread_queue_size 512 -f sndio -i snd/0.mon \
 	-filter_complex "[0]${AUDIOMERGE}" -map '[a]' -c:a aac -f nut pipe:1 | \
 	ffmpeg $BASE -thread_queue_size 512 -f nut -itsoffset $audiooffset -i pipe:0 $VIDEO -c:a copy -f flv "$filename"
