@@ -1,4 +1,5 @@
 #!/bin/sh
+
 ########
 # Copyright (c) 2018-2019 Thomas Frohwein <11335318+rfht@users.noreply.github.com>
 #
@@ -49,7 +50,7 @@
 ###########
 # LESSONS LEARNED
 ###########
-# - audio offset needs to be applied on the audio in the second ffmpeg,
+# - audio offset needs to be applied to the audio in the second ffmpeg,
 #   right of the pipe. This clearly worked as opposed to left of the pipe
 #   with Rogue Legacy recording at 900p 60fps.
 
@@ -57,38 +58,36 @@ USAGE="Usage: `basename $0` [-m] [-d mic_device] [-a audiooffset] [-n window_nam
 
 # Parse arguments based on http://www.shelldorado.com/goodcoding/cmdargs.html
 
+audiooffset=0.0
+bitrate=3500
+bufsize=
+container=flv
 filename=
-windowname=
-resolution=
-offset=
-widthline=
-widthval=
+framerate=30
+fullscreen=0
+gop=
 heightline=
 heightval=
+hilopass=",lowpass=3000,highpass=200,afftdn"
+mic=0
+mic_device=snd/0
+noaudio=0
+offset=
+resolution=1280x720
+scaleres=
+threads=0	# -t 0 is the default and uses as many threads as available/cores
+videocodec=libx264
+volume=1.0
+volume_mic=1.0
+volume_mon=1.0
+windowname=
+widthline=
+widthval=
+wininfoargs=
 xline=
 xval=0
 yline=
 yval=0
-videocodec=
-volume=
-framerate=
-wininfoargs=
-noaudio=0
-bitrate=
-bufsize=
-scaleres=
-threads=
-gop=
-fullscreen=0
-mic=0
-volume_mic=
-volume_mon=
-hilopass=",lowpass=3000,highpass=200,afftdn"
-mic_device=snd/0
-# default to 300ms which at least on my system seems to be the delay
-# when recording both audio streams, adjusting the volume, and
-# merging them
-audiooffset=0.0
 
 # FIXME: set up getopt(1) use
 #args=`getopt abo: $*`
@@ -118,10 +117,10 @@ fi
 while [[ $# -gt 0 ]]
 do
 	case "$1" in
-		-n) windowname="$2"; shift;;
 		-a) audiooffset="$2"; shift;;
 		-b) bitrate="$2"; shift;;
 		-c) videocodec="$2"; shift;;
+		-container) container="$2"; shift;;
 		-crf) crf="$2"; shift;;
 		-d) mic_device="$2"; shift;;
 		-f) framerate="$2"; shift;;
@@ -129,6 +128,7 @@ do
 		-h) echo $USAGE; exit 0;;
 		-hl) hilopass="";;
 		-m) mic=1;;
+		-n) windowname="$2"; shift;;
 		-noaudio) noaudio=1;;
 		-o) offset="$2"; shift;;
 		-v) volume="$2"; shift;;
@@ -143,34 +143,8 @@ do
 	shift
 done
 
-# set defaults if not specified in arguments
-if [[ -z "$framerate" ]];then
-	framerate=30
-fi
-if [[ -z "$videocodec" ]];then
-	videocodec=libx264
-fi
-if [[ -z "$volume" ]];then
-	volume=1.0
-fi
-if [[ -z "$threads" ]];then
-	# -t 0 is the default and uses as many threads as available/cores
-	threads=0
-fi
 if [[ -z "$filename" ]];then
 	echo $USAGE; exit 0
-fi
-if [[ -z "$bitrate" ]];then
-	bitrate=3500
-fi
-if [[ -z "$resolution" ]];then
-	resolution=1280x720
-fi
-if [[ -z "$volume_mic" ]];then
-        volume_mic=1.0
-fi
-if [[ -z "$volume_mon" ]];then
-	volume_mon=1.0
 fi
 
 bufsize=`expr $bitrate \* 2`
