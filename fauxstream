@@ -16,7 +16,6 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 ########
 
-
 ############
 # TODO:
 ############
@@ -45,6 +44,7 @@
 # - Cryptark crashes/hangs on this Ryzen 7 2700
 # - add '-s $OUTRES' ??
 # - -m and -noaudio should be mutually exclusive
+# - add man page
 ###########
 
 ###########
@@ -199,67 +199,8 @@ VIDEO="-video_size $resolution \
 
 AUDIOMERGE="volume=$volume_mic,aformat=channel_layouts=stereo$hilopass[l];[1]volume=$volume_mon,aformat=channel_layouts=stereo[m];[l][m]amerge=inputs=2[a]"
 
-#FIXME: $AUDIO doesn't seem to be used at the moment
-if [ $noaudio -lt 1 ]; then
-	AUDIO="-f nut pipe:1 | \
-	ffmpeg \
-	$BASE \
-	-thread_queue_size 512 \
-	-f nut -i pipe:0 \
-	-thread_queue_size 512 \
-	-f sndio \
-	-itsoffset $audiooffset \
-	-i "$mic_device" \
-	-thread_queue_size 512 \
-	-f sndio \
-	-itsoffset $audiooffset \
-	-i snd/0.mon \
-	-filter_complex \
-	\"[1]${AUDIOMERGE};[a]aresample=async=1[b]\" \
-	-map 0:v:0 -map '[b]' \
-	-c:v copy -c:a pcm_s16le \
-	-thread_queue_size 512 \
-	-f nut pipe:1 | \
-	ffmpeg \
-	$BASE \
-	-thread_queue_size 512 \
-	-f nut -i pipe:0 \
-	-c:v copy -c:a aac -b:a 160k"
-fi
-if [ $noaudio -lt 1 -a $mic -lt 1 ]; then
-	AUDIO="-thread_queue_size 512 \
-	-f nut pipe:1 | \
-	ffmpeg \
-	$BASE \
-	-thread_queue_size 512 \
-	-f nut -i pipe:0 \
-	-thread_queue_size 512 \
-	-f sndio \
-	-itsoffset $audiooffset \
-	-i snd/0.mon \
-	-af aresample=async=1
-	-c:v copy -c:a aac -b:a 160k"
-fi
-
 # if no mic (= no -m), only record from snd/0.mon
 #	and the only filter is aresample=async=1
-
-# if noaudio, everything after 1st ffmpeg empty, and no need for -map
-# AUDIO=""
-
-# if [[ $noaudio -gt 0 ]];then
-# elif [[ $mic -lt 1 ]];then
-	# -itsoffset $audiooffset \
-	# -f sndio -i snd/0.mon \
-	# -af aresample=async=1 \
-	# -map 0:v:0 -map 1:a:0 -c:v copy -c:a aac -q:a 2 -ac 2 \
-	# -f flv "$filename"
-# else
-
-# ffmpeg $BASE $VIDEO $AUDIO -f nut pipe:1 | \
-# ffmpeg $BASE -f nut -i pipe:0 -vsync 0 \
-# -f sndio -i snd/0.mon -af aresample=async=1000 -c:v copy -c:a aac \
-# -f nut "$filename"
 
 if [ $noaudio -lt 1 -a $mic -lt 1 ]; then
 	#only monitoring stream
