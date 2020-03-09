@@ -19,6 +19,7 @@
 ############
 # TODO:
 ############
+# - ADD OPTION TO SAVE MIC TO SEPARATE FILE (solene request)
 # - add mention of $DISPLAY variable for the recording?
 # - AFAIK '-preset ultrafast' is specific to libx264 and needs to be disabled
 #   for use of other codecs
