@@ -138,7 +138,8 @@ do
 		-t) threads="$2"; shift;;
 		-vmic) volume_mic="$2"; shift;;
 		-vmon) volume_mon="$2"; shift;;
-		-*) echo $USAGE; exit 0;;
+		-) filename="$1"; break;;
+		-?*) echo $USAGE; exit 0;;
 		*) filename="$1"; break;;
 	esac
 	shift
@@ -176,7 +177,7 @@ if [[ -n "$windowname" ]];then
 	offset="+${xval},${yval}"
 fi
 
-echo "Press Ctrl+C to stop recording\n"
+echo "Press Ctrl+C to stop recording\n" >& 2
 
 BASE="\
 -hide_banner \
