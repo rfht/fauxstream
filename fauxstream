@@ -200,7 +200,7 @@ VIDEO="-video_size $resolution \
 -g $gop \
 -keyint_min $framerate"
 
-AUDIOMERGE="volume=$volume_mic,aformat=channel_layouts=stereo$hilopass[l];[1]volume=$volume_mon,aformat=channel_layouts=stereo[m];[l][m]amerge=inputs=2[a]"
+AUDIOMERGE="volume=$volume_mic,aformat=channel_layouts=stereo$hilopass[l];[1]volume=$volume_mon,aformat=channel_layouts=stereo[m];[l][m]amix=inputs=2[a]"
 
 # if no mic (= no -m), only record from snd/0.mon
 #	and the only filter is aresample=async=1
