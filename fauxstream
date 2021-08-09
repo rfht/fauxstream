@@ -208,14 +208,14 @@ AUDIOMERGE="volume=$volume_mic,aformat=channel_layouts=stereo$hilopass[l];[1]vol
 if [ $noaudio -lt 1 -a $mic -lt 1 ]; then
 	#only monitoring stream
 	ffmpeg $BASE -f sndio -i snd/0.mon -c:a aac -f nut pipe:1 | \
-	ffmpeg $BASE -f nut -itsoffset $audiooffset -i pipe:0 $VIDEO -c:a copy -f flv "$filename"
+	ffmpeg $BASE -f nut -itsoffset $audiooffset -i pipe:0 $VIDEO -c:a copy -f "${container}" "$filename"
 elif [ $noaudio -lt 1 ]; then
 	#mon + mic stream
 	ffmpeg $BASE -thread_queue_size 512 -f sndio -i "$mic_device" \
 	-thread_queue_size 512 -f sndio -i snd/0.mon \
 	-filter_complex "[0]${AUDIOMERGE}" -map '[a]' -c:a aac -f nut pipe:1 | \
-	ffmpeg $BASE -thread_queue_size 512 -f nut -itsoffset $audiooffset -i pipe:0 $VIDEO -c:a copy -f flv "$filename"
+	ffmpeg $BASE -thread_queue_size 512 -f nut -itsoffset $audiooffset -i pipe:0 $VIDEO -c:a copy -f "${container}" "$filename"
 else
 	#no audio
-	ffmpeg $BASE $VIDEO -f flv "$filename"
+	ffmpeg $BASE $VIDEO -f "${container}" "$filename"
 fi
