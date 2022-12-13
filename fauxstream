@@ -156,6 +156,8 @@ if [[ -n "$scaleres" ]];then
 	scaleres="scale=${scaleres},"
 fi
 
+sndio_device="$(sndioctl server.device | cut -f2 -d=)"
+
 # if -n was used, overwrite resolution with window parameters
 if [[ -n "$windowname" ]];then
 	xline=`xwininfo -name "$windowname" | grep "Absolute upper-left X"`
@@ -202,17 +204,17 @@ VIDEO="-video_size $resolution \
 
 AUDIOMERGE="volume=$volume_mic,aformat=channel_layouts=stereo$hilopass[l];[1]volume=$volume_mon,aformat=channel_layouts=stereo[m];[l][m]amix=inputs=2[a]"
 
-# if no mic (= no -m), only record from snd/0.mon
+# if no mic (= no -m), only record from snd/$sndio_device.mon
 #	and the only filter is aresample=async=1
 
 if [ $noaudio -lt 1 -a $mic -lt 1 ]; then
 	#only monitoring stream
-	ffmpeg $BASE -f sndio -i snd/0.mon -c:a aac -f nut pipe:1 | \
+	ffmpeg $BASE -f sndio -i snd/$sndio_device.mon -c:a aac -f nut pipe:1 | \
 	ffmpeg $BASE -f nut -itsoffset $audiooffset -i pipe:0 $VIDEO -c:a copy -f "${container}" "$filename"
 elif [ $noaudio -lt 1 ]; then
 	#mon + mic stream
 	ffmpeg $BASE -thread_queue_size 512 -f sndio -i "$mic_device" \
-	-thread_queue_size 512 -f sndio -i snd/0.mon \
+	-thread_queue_size 512 -f sndio -i snd/$sndio_device.mon \
 	-filter_complex "[0]${AUDIOMERGE}" -map '[a]' -c:a aac -f nut pipe:1 | \
 	ffmpeg $BASE -thread_queue_size 512 -f nut -itsoffset $audiooffset -i pipe:0 $VIDEO -c:a copy -f "${container}" "$filename"
 else
