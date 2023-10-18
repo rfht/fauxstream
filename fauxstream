@@ -40,7 +40,6 @@
 #   -> should ideally default to geometry with default of 1280x720+0+0
 # - document '-m' turns on recording from mic
 # - '-m' currently uses hardcoded snd/0
-# - fix '-fullscreen' parameter (not working correctly)
 # - may not need as many 'thread_queue_size options, but definitely for the -f sndio inputs
 # - Cryptark crashes/hangs on this Ryzen 7 2700
 # - add '-s $OUTRES' ??
@@ -158,8 +157,34 @@ fi
 
 sndio_device="$(sndioctl server.device | cut -f2 -d=)"
 
-# if -n was used, overwrite resolution with window parameters
-if [[ -n "$windowname" ]];then
+echo -n "Recording geometry ("
+# if -r was used
+if [ $resolution != "1280x720" -a -z "$windowname" ];then
+  echo -n "custom"
+  # if -fullscreen was used, overwrite resolution with root window parameters (overrides -r and -o)
+elif [ $fullscreen -eq 1 ]; then
+  xline=`xwininfo -name "$windowname" | grep "Absolute upper-left X"`
+	yline=`xwininfo -name "$windowname" | grep "Absolute upper-left Y"`
+	widthline=`xwininfo -root | grep "Width:"`
+	heightline=`xwininfo -root | grep "Height:"`
+	xval=`echo "$xline" | cut -f 7 -d " "`
+	yval=`echo "$yline" | cut -f 7 -d " "`
+  # width and height need to be multiples of 2
+  # in the case of fullscreen, contract by 1px (if necessary; seems unlikely to happen)
+	widthval=`echo "$widthline" | cut -f 4 -d " "`
+	if [[ `expr $widthval % 2` -eq 1 ]]; then
+		widthval=`expr $widthval - 1`
+	fi
+	heightval=`echo "$heightline" | cut -f 4 -d " "`
+	if [[ `expr $heightval % 2` -eq 1 ]]; then
+		heightval=`expr $heightval - 1`
+	fi
+	resolution="${widthval}x${heightval}"
+	offset="+${xval},${yval}"
+
+  echo -n "fullscreen"
+# if -n was used, overwrite resolution with window parameters (overrides -r, -o, and -fullscreen)
+elif [[ -n "$windowname" ]];then
 	xline=`xwininfo -name "$windowname" | grep "Absolute upper-left X"`
 	yline=`xwininfo -name "$windowname" | grep "Absolute upper-left Y"`
 	widthline=`xwininfo -name "$windowname" | grep "Width:"`
@@ -167,6 +192,7 @@ if [[ -n "$windowname" ]];then
 	xval=`echo "$xline" | cut -f 7 -d " "`
 	yval=`echo "$yline" | cut -f 7 -d " "`
 	# width and height need to be multiples of 2
+  # in the case of windows, expand by 1px (if necessary)
 	widthval=`echo "$widthline" | cut -f 4 -d " "`
 	if [[ `expr $widthval % 2` -eq 1 ]]; then
 		widthval=`expr $widthval + 1`
@@ -177,7 +203,12 @@ if [[ -n "$windowname" ]];then
 	fi
 	resolution="${widthval}x${heightval}"
 	offset="+${xval},${yval}"
+
+  echo -n "$windowname"
+else
+  echo -n "default"
 fi
+echo -n "): ${resolution}${offset}\n"
 
 echo "Press Ctrl+C to stop recording\n" >& 2
 
