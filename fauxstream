@@ -27,8 +27,6 @@
 #   resolution?
 # - mention need to stop recording with Ctrl-C??
 # - add highpass=f=200,lowpass=f=3000
-# - document default resolution (if no window name provided) of 1920x1080
-# - document that if -n is not given, will default to root window
 # - document windowname (-n) needs to be in "" if multiple words
 # - document that window needs to be visible/on top
 # - link for finding twitch servers:
@@ -36,8 +34,6 @@
 # - does -s option need to be in "" ? -> should not be needed
 # - document that compositor has negative effect on smoothness
 # - framerate 29 seems to be better than 30 in regads to Twitch stream health
-# - should be either resolution (-r) (+ offset (-o)), window name (-n), or fullscreen (-fullscreen)
-#   -> should ideally default to geometry with default of 1280x720+0+0
 # - document '-m' turns on recording from mic
 # - '-m' currently uses hardcoded snd/0
 # - may not need as many 'thread_queue_size options, but definitely for the -f sndio inputs
