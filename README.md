@@ -61,14 +61,18 @@ Usage
 -----
 
 ```
-fauxstream [-vmon <factor>] [-m [-vmic <factor>]] [-r <size>]
+fauxstream [-vmon <factor>] [-m [-vmic <factor>]]
+    [-r <size> [-o <offset>] | -fullscreen | -n <name>]
 	[-f <framerate>] [-a <seconds>] <target>
 
 -m:	enable microphone stream (in addition to monitoring stream)
 -vmon:	factor to adjust volume of the monitoring stream
 -vmic:	factor to adjust volume of the microphone stream
--r:	set video size (resolution)
--f:	set video framerate
+-r:	set video size (resolution; default: 1280x720)
+-o: set video offset (from top left; default: +0,0)
+-fullscreen: set video size & offset to root window geometry (supersedes -r and -o)
+-n: set video size to geometry of named window (supersedess -r, -o, and -fullscreen)
+-f:	set video framerate (default: 30)
 -a:	set audio offset (in seconds; can be negative)
 
 The target can be a file or a remote streaming address (`rtmp://`).
@@ -102,6 +106,14 @@ particular anymore.
 **Q: How do I stop the recording??**
 
 A: Press Ctrl-C to stop the recording.
+
+**Q: I'm trying to record a specific window, but why does moving it
+or covering it not keep recording it?**
+
+A: Unfortunately, it's just recording the screen geometry of where
+the window was when you started recording. Any overlapping windows
+will be included in the recorded area and moving the window will
+result in it moving outside of the recorded area.
 
 Related Links:
 --------------
