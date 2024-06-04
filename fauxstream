@@ -151,7 +151,7 @@ if [[ -n "$scaleres" ]];then
 	scaleres="scale=${scaleres},"
 fi
 
-sndio_device="$(sndioctl server.device | cut -f2 -d=)"
+sndio_device="$(sndioctl -n server.device | cut -f1 -d'(')"
 
 echo -n "Recording geometry ("
 # if -r was used
