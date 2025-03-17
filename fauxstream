@@ -49,6 +49,14 @@
 # - audio offset needs to be applied to the audio in the second ffmpeg,
 #   right of the pipe. This clearly worked as opposed to left of the pipe
 #   with Rogue Legacy recording at 900p 60fps.
+# - it's suggested to encode at a constant bitrate (CBR) to prevent buffering,
+#   dropped frames, and "broadcast starvation" per
+#   https://help.twitch.tv/s/article/broadcasting-guidelines
+# - keyframing should be every 2s and automatic scene change detection should
+#   be disabled per
+#   https://videoblerg.wordpress.com/2016/08/16/how-to-create-abr-content-with-ffmpeg-in-one-pass/
+#   and
+#   https://blog.twitch.tv/en/2017/10/10/live-video-transmuxing-transcoding-f-fmpeg-vs-twitch-transcoder-part-i-489c1c125f28/
 
 USAGE="Usage: `basename $0` [-m] [-d mic_device] [-a audiooffset] [-n window_name] [-c codec] [-b bitrate] [-r resolution] [-o offset] [-fullscreen] [-s <scale_x>:<scale_y>] [-f framerate] [-v volume_adjustment] [-vmic mic_volume] [-vmon monitor_volume] [-t threads ] [-noaudio] [-crf crf] <rtmp url>"
 
@@ -220,14 +228,16 @@ VIDEO="-video_size $resolution \
 -i $DISPLAY$offset \
 -r $framerate \
 -c:v $videocodec \
--vb ${bitrate}k \
+-b:v ${bitrate}k \
 -minrate ${bitrate}k \
 -maxrate ${bitrate}k \
 -bufsize ${bufsize}k \
 -preset ultrafast \
+-profile:v main \
 -vf "${scaleres}format=yuv420p" \
+-keyint_min $framerate \
 -g $gop \
--keyint_min $framerate"
+-x264-params no-scenecut=1"
 
 AUDIOMERGE="volume=$volume_mic,aformat=channel_layouts=stereo$hilopass[l];[1]volume=$volume_mon,aformat=channel_layouts=stereo[m];[l][m]amix=inputs=2[a]"
 
