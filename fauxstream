@@ -123,7 +123,7 @@ while [[ $# -gt 0 ]]
 do
 	case "$1" in
 		-a|-ao) audiooffset="$2"; shift;;
-		--ab) audio_bitrate="$2" ; shift;;
+		-ab) audio_bitrate="$2" ; shift;;
 		-b|-vb) video_bitrate="$2"; shift;;
 		-c) videocodec="$2"; shift;;
 		-container) container="$2"; shift;;
@@ -224,18 +224,21 @@ BASE="\
 -thread_queue_size 512 \
 -threads $threads"
 
-VIDEO="-video_size $resolution \
+VIDEO="\
 -thread_queue_size 512 \
 -f x11grab \
+-video_size $resolution \
 -i $DISPLAY$offset \
 -r $framerate \
+-framerate $framerate \
 -c:v $videocodec \
+-profile:v high \
 -b:v ${video_bitrate}k \
 -minrate ${video_bitrate}k \
 -maxrate ${video_bitrate}k \
 -bufsize ${bufsize}k \
 -preset ultrafast \
--profile:v high \
+-tune zerolatency \
 -vf "${scaleres}format=yuv420p" \
 -g $gop \
 -keyint_min $framerate \
