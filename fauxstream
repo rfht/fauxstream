@@ -58,12 +58,13 @@
 #   and
 #   https://blog.twitch.tv/en/2017/10/10/live-video-transmuxing-transcoding-f-fmpeg-vs-twitch-transcoder-part-i-489c1c125f28/
 
-USAGE="Usage: `basename $0` [-m] [-d mic_device] [-a audiooffset] [-n window_name] [-c codec] [-b bitrate] [-r resolution] [-o offset] [-fullscreen] [-s <scale_x>:<scale_y>] [-f framerate] [-v volume_adjustment] [-vmic mic_volume] [-vmon monitor_volume] [-t threads ] [-noaudio] [-crf crf] <rtmp url>"
+USAGE="Usage: `basename $0` [-m] [-d mic_device] [-a audiooffset] [-ab audio_bitrate] [-n window_name] [-c codec] [-vb bitrate] [-r resolution] [-o offset] [-fullscreen] [-s <scale_x>:<scale_y>] [-f framerate] [-v volume_adjustment] [-vmic mic_volume] [-vmon monitor_volume] [-t threads ] [-noaudio] [-crf crf] <rtmp url>"
 
 # Parse arguments based on http://www.shelldorado.com/goodcoding/cmdargs.html
 
 audiooffset=0.0
-bitrate=3500
+audio_bitrate=96
+video_bitrate=3500
 bufsize=
 container=flv
 filename=
@@ -121,8 +122,9 @@ fi
 while [[ $# -gt 0 ]]
 do
 	case "$1" in
-		-a) audiooffset="$2"; shift;;
-		-b) bitrate="$2"; shift;;
+		-a|-ao) audiooffset="$2"; shift;;
+		--ab) audio_bitrate="$2" ; shift;;
+		-b|-vb) video_bitrate="$2"; shift;;
 		-c) videocodec="$2"; shift;;
 		-container) container="$2"; shift;;
 		-crf) crf="$2"; shift;;
@@ -152,7 +154,7 @@ if [[ -z "$filename" ]];then
 	echo $USAGE; exit 0
 fi
 
-bufsize=`expr $bitrate \* 2`
+bufsize=`expr $video_bitrate \* 2`
 gop=`expr $framerate \* 2`
 
 if [[ -n "$scaleres" ]];then
@@ -228,16 +230,20 @@ VIDEO="-video_size $resolution \
 -i $DISPLAY$offset \
 -r $framerate \
 -c:v $videocodec \
--b:v ${bitrate}k \
--minrate ${bitrate}k \
--maxrate ${bitrate}k \
+-b:v ${video_bitrate}k \
+-minrate ${video_bitrate}k \
+-maxrate ${video_bitrate}k \
 -bufsize ${bufsize}k \
 -preset ultrafast \
--profile:v main \
+-profile:v high \
 -vf "${scaleres}format=yuv420p" \
--keyint_min $framerate \
 -g $gop \
+-keyint_min $framerate \
 -x264-params no-scenecut=1"
+
+AUDIO="-c:a aac \
+-b:a ${audio_bitrate}k \
+-aac_coder fast"
 
 AUDIOMERGE="volume=$volume_mic,aformat=channel_layouts=stereo$hilopass[l];[1]volume=$volume_mon,aformat=channel_layouts=stereo[m];[l][m]amix=inputs=2[a]"
 
@@ -246,13 +252,13 @@ AUDIOMERGE="volume=$volume_mic,aformat=channel_layouts=stereo$hilopass[l];[1]vol
 
 if [ $noaudio -lt 1 -a $mic -lt 1 ]; then
 	#only monitoring stream
-	ffmpeg $BASE -f sndio -i snd/$sndio_device.mon -c:a aac -f nut pipe:1 | \
+  ffmpeg $BASE -f sndio -i snd/$sndio_device.mon $AUDIO -f nut pipe:1 | \
 	ffmpeg $BASE -f nut -itsoffset $audiooffset -i pipe:0 $VIDEO -c:a copy -f "${container}" "$filename"
 elif [ $noaudio -lt 1 ]; then
 	#mon + mic stream
 	ffmpeg $BASE -thread_queue_size 512 -f sndio -i "$mic_device" \
 	-thread_queue_size 512 -f sndio -i snd/$sndio_device.mon \
-	-filter_complex "[0]${AUDIOMERGE}" -map '[a]' -c:a aac -f nut pipe:1 | \
+	-filter_complex "[0]${AUDIOMERGE}" -map '[a]' $AUDIO -f nut pipe:1 | \
 	ffmpeg $BASE -thread_queue_size 512 -f nut -itsoffset $audiooffset -i pipe:0 $VIDEO -c:a copy -f "${container}" "$filename"
 else
 	#no audio
