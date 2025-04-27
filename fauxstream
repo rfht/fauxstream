@@ -228,9 +228,9 @@ VIDEO="\
 -thread_queue_size 512 \
 -f x11grab \
 -video_size $resolution \
+-framerate $framerate \
 -i $DISPLAY$offset \
 -r $framerate \
--framerate $framerate \
 -c:v $videocodec \
 -profile:v high \
 -b:v ${video_bitrate}k \
