@@ -47,7 +47,6 @@ USAGE="Usage: `basename $0` [-m] [-d mic_device] [-a audiooffset] [-ab audio_bit
 
 audiooffset=0.0
 audio_bitrate=96
-video_bitrate=3500
 bufsize=
 container=flv
 filename=
@@ -65,6 +64,7 @@ resolution=1280x720
 scaleres=
 threads=0
 videocodec=libx264
+video_bitrate=3500
 volume=1.0
 volume_mic=1.0
 volume_mon=1.0
