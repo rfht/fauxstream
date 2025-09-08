@@ -175,8 +175,8 @@ elif [ $fullscreen -eq 1 ]; then
 	heightline=`xwininfo -root | grep "Height:"`
 	xval=`echo "$xline" | cut -f 7 -d " "`
 	yval=`echo "$yline" | cut -f 7 -d " "`
-  # width and height need to be multiples of 2
-  # in the case of fullscreen, contract by 1px (if necessary; seems unlikely to happen)
+	# width and height need to be multiples of 2
+	# in the case of fullscreen, contract by 1px (if necessary; seems unlikely to happen)
 	widthval=`echo "$widthline" | cut -f 4 -d " "`
 	if [[ `expr $widthval % 2` -eq 1 ]]; then
 		widthval=`expr $widthval - 1`
@@ -198,7 +198,7 @@ elif [[ -n "$windowname" ]];then
 	xval=`echo "$xline" | cut -f 7 -d " "`
 	yval=`echo "$yline" | cut -f 7 -d " "`
 	# width and height need to be multiples of 2
-  # in the case of windows, expand by 1px (if necessary)
+	# in the case of windows, expand by 1px (if necessary)
 	widthval=`echo "$widthline" | cut -f 4 -d " "`
 	if [[ `expr $widthval % 2` -eq 1 ]]; then
 		widthval=`expr $widthval + 1`
@@ -227,6 +227,7 @@ BASE="\
 VIDEO="\
 -thread_queue_size 512 \
 -f x11grab \
+-show_region 1 \
 -video_size $resolution \
 -framerate $framerate \
 -i $DISPLAY$offset \
