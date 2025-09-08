@@ -99,10 +99,10 @@ do
 		-n) windowname="$2"; shift;;
 		-noaudio) noaudio=1;;
 		-o) offset="$2"; shift;;
-		-v) volume="$2"; shift;;
 		-r) resolution="$2"; shift;;
 		-s) scaleres="$2"; shift;;
 		-t) threads="$2"; shift;;
+		-v) volume="$2"; shift;;
 		-vmic) volume_mic="$2"; shift;;
 		-vmon) volume_mon="$2"; shift;;
 		-) filename="$1"; break;;
