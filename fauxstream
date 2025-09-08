@@ -77,27 +77,6 @@ xval=0
 yline=
 yval=0
 
-# FIXME: set up getopt(1) use
-#args=`getopt abo: $*`
-#if [ $? -ne 0 ]
-#then
-	#echo 'Usage: ...'
-	#exit 2
-#fi
-#set -- $args
-#while [ $# -ne 0 ]
-#do
-	#case "$1"
-	#in
-		#-a|-b)
-			#flag="$1"; shift;;
-		#-o)
-			#oarg="$2"; shift; shift;;
-		#--)
-			#shift; break;;
-	#esac
-#done
-
 if [[ $# -eq 0 ]];then
 	echo $USAGE; exit 0
 fi
