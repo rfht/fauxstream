@@ -25,21 +25,12 @@
 #   for use of other codecs
 # - get default framerate from xrandr? same for resolution - default to desktop
 #   resolution?
-# - mention need to stop recording with Ctrl-C??
-# - add highpass=f=200,lowpass=f=3000
 # - document windowname (-n) needs to be in "" if multiple words
 # - document that window needs to be visible/on top
-# - link for finding twitch servers:
-#   http://bashtech.net/twitch/ingest.php
-# - does -s option need to be in "" ? -> should not be needed
 # - document that compositor has negative effect on smoothness
-# - framerate 29 seems to be better than 30 in regads to Twitch stream health
 # - document '-m' turns on recording from mic
-# - '-m' currently uses hardcoded snd/0
 # - may not need as many 'thread_queue_size options, but definitely for the -f sndio inputs
-# - Cryptark crashes/hangs on this Ryzen 7 2700
 # - add '-s $OUTRES' ??
-# - -m and -noaudio should be mutually exclusive
 # - add man page
 ###########
 
@@ -47,20 +38,12 @@
 # LESSONS LEARNED
 ###########
 # - audio offset needs to be applied to the audio in the second ffmpeg,
-#   right of the pipe. This clearly worked as opposed to left of the pipe
-#   with Rogue Legacy recording at 900p 60fps.
-# - it's suggested to encode at a constant bitrate (CBR) to prevent buffering,
-#   dropped frames, and "broadcast starvation" per
-#   https://help.twitch.tv/s/article/broadcasting-guidelines
+#   right of the pipe.
 # - keyframing should be every 2s and automatic scene change detection should
-#   be disabled per
-#   https://videoblerg.wordpress.com/2016/08/16/how-to-create-abr-content-with-ffmpeg-in-one-pass/
-#   and
-#   https://blog.twitch.tv/en/2017/10/10/live-video-transmuxing-transcoding-f-fmpeg-vs-twitch-transcoder-part-i-489c1c125f28/
+#   be disabled per twich, videoberg recommendations.
+###########
 
 USAGE="Usage: `basename $0` [-m] [-d mic_device] [-a audiooffset] [-ab audio_bitrate] [-n window_name] [-c codec] [-vb bitrate] [-r resolution] [-o offset] [-fullscreen] [-s <scale_x>:<scale_y>] [-f framerate] [-v volume_adjustment] [-vmic mic_volume] [-vmon monitor_volume] [-t threads ] [-noaudio] [-crf crf] <rtmp url>"
-
-# Parse arguments based on http://www.shelldorado.com/goodcoding/cmdargs.html
 
 audiooffset=0.0
 audio_bitrate=96
@@ -80,7 +63,7 @@ noaudio=0
 offset=
 resolution=1280x720
 scaleres=
-threads=0	# -t 0 is the default and uses as many threads as available/cores
+threads=0
 videocodec=libx264
 volume=1.0
 volume_mic=1.0
