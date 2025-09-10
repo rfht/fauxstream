@@ -64,6 +64,8 @@ offset=
 preset_vaapi=
 resolution=1280x720
 scaleres=
+scale_h=
+scale_w=
 threads=0
 videocodec=libx264
 video_bitrate=3500
@@ -118,7 +120,7 @@ do
 	shift
 done
 
-if [[ -z "$filename" ]];then
+if [[ -z "$filename" ]]; then
 	echo $USAGE; exit 0
 fi
 
@@ -132,7 +134,13 @@ done
 if [[ $preset_vaapi -eq 1 ]]; then
 	videocodec=h264_vaapi
 	video_device="-vaapi_device /dev/dri/renderD128"
-	video_format="-vf "format=nv12,hwupload""
+	if [[ -n "scaleres" ]]; then
+		scale_w=$(echo $scaleres | cut -dx -f1)
+		scale_h=$(echo $scaleres | cut -dx -f2)
+		video_format="-vf "hwupload,scale_vaapi=w=${scale_w}:h=${scale_h}:format=nv12""
+	else
+		video_format="-vf "format=nv12,hwupload""
+	fi
 else
 	video_format="-vf "${scaleres}format=yuv420p""
 	video_output_fps= "-r $framerate"
@@ -141,7 +149,7 @@ fi
 bufsize=`expr $video_bitrate \* 2`
 gop=`expr $framerate \* 2`
 
-if [[ -n "$scaleres" ]];then
+if [[ -n "$scaleres" ]]; then
 	scaleres="scale=${scaleres},"
 fi
 
