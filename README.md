@@ -84,14 +84,21 @@ Examples:
 ### Stream to Twitch:
 
 ```
-sh fauxstream -m -vmic 5.0 -vmon 0.25 -r 1920x1080 -f 30 -a -0.2 \
+fauxstream -m -vmic 5.0 -vmon 0.25 -r 1920x1080 -f 30 -a -0.2 \
 	"rtmp://<SERVER>.twitch.tv/app/<STREAM_KEY>
 ```
 
 ### Record to file:
 
 ```
-sh fauxstream [...] /path/to/file.flv
+fauxstream [...] /path/to/file.flv
+```
+
+### Record with VAAPI hardware encoding
+
+Note this needs the required libraries. On OpenBSD, check for package `intel-media-driver`. Run `vainfo` from package `libva-utils` to check if VAAPI is supported.
+```
+fauxstream -p vaapi /path/to/file.flv
 ```
 
 FAQ:
