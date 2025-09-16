@@ -134,7 +134,7 @@ done
 if [[ $preset_vaapi -eq 1 ]]; then
 	videocodec=h264_vaapi
 	video_device="-vaapi_device /dev/dri/renderD128"
-	if [[ -z "scaleres" ]]; then
+	if [[ -n "$scaleres" ]]; then
 		scale_w=$(echo $scaleres | cut -dx -f1)
 		scale_h=$(echo $scaleres | cut -dx -f2)
 		video_format="-vf "hwupload,scale_vaapi=w=${scale_w}:h=${scale_h}:format=nv12""
@@ -142,6 +142,9 @@ if [[ $preset_vaapi -eq 1 ]]; then
 		video_format="-vf "format=nv12,hwupload""
 	fi
 else
+	if [[ -n "$scaleres" ]]; then
+		scaleres="scale=${scaleres},"
+	fi
 	video_format="-vf "${scaleres}format=yuv420p""
 	video_output_fps= "-r $framerate"
 fi
@@ -149,9 +152,6 @@ fi
 bufsize=`expr $video_bitrate \* 2`
 gop=`expr $framerate \* 2`
 
-if [[ -z "$scaleres" ]]; then
-	scaleres="scale=${scaleres},"
-fi
 
 sndio_device="$(sndioctl -n server.device | cut -f1 -d'(')"
 
