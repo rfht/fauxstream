@@ -238,24 +238,6 @@ ${video_format} \
 -keyint_min $framerate \
 -x264-params no-scenecut=1"
 
-VIDEO_VA="-re \
--video_size $resolution \
--vaapi_device /dev/dri/renderD128 \
--f x11grab \
--show_region 1 \
--framerate $framerate \
--thread_queue_size 512 \
--i $DISPLAY$offset \
--vf "hwupload,scale_vaapi=format=nv12,fps=fps=$framerate" \
--c:v $videocodec \
--b:v ${video_bitrate}k \
--minrate ${video_bitrate}k \
--maxrate ${video_bitrate}k \
--bufsize ${bufsize}k \
--preset ultrafast \
--g $gop \
--vsync 0"
-
 AUDIO="-c:a aac \
 -b:a ${audio_bitrate}k \
 -aac_coder fast"
