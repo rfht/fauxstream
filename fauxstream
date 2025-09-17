@@ -146,7 +146,7 @@ else
 		scaleres="scale=${scaleres},"
 	fi
 	video_format="-vf "${scaleres}format=yuv420p""
-	video_output_fps= "-r $framerate"
+	video_output_fps="-r $framerate"
 fi
 
 bufsize=`expr $video_bitrate \* 2`
@@ -210,20 +210,25 @@ echo -n "): ${resolution}${offset}\n"
 
 echo "Press Ctrl+C to stop recording\n" >& 2
 
-BASE="\
+# global ffmpeg options
+GLOBAL="\
 -hide_banner \
 -loglevel error \
 -thread_queue_size 512 \
--threads $threads"
+-threads $threads\
+"
 
-VIDEO="\
+VIDEO_IN="\
 -thread_queue_size 512 \
 -show_region 1 \
-${video_device} \
 -f x11grab \
 -video_size $resolution \
 -framerate $framerate \
--i $DISPLAY$offset \
+-i $DISPLAY$offset\
+"
+
+VIDEO_CONV="\
+${video_device} \
 ${video_output_fps} \
 -c:v $videocodec \
 -profile:v high \
@@ -236,28 +241,48 @@ ${video_output_fps} \
 ${video_format} \
 -g $gop \
 -keyint_min $framerate \
--x264-params no-scenecut=1"
+-x264-params no-scenecut=1\
+"
 
-AUDIO="-c:a aac \
+MON_IN="\
+-f sndio \
+-i snd/mon\
+"
+
+MIC_IN="\
+-f sndio \
+-i "$mic_device"\
+"
+
+AUDIO_CONV="\
+-c:a aac \
 -b:a ${audio_bitrate}k \
--aac_coder fast"
+-aac_coder fast\
+"
 
-AUDIOMERGE="volume=$volume_mic,aformat=channel_layouts=stereo$hilopass[l];[1]volume=$volume_mon,aformat=channel_layouts=stereo[m];[l][m]amix=inputs=2[a]"
+AUDIOMERGE="\
+[0]volume=$volume_mic,aformat=channel_layouts=stereo$hilopass[l];\
+[1]volume=$volume_mon,aformat=channel_layouts=stereo[m];\
+[l][m]amix=inputs=2[a]\
+"
 
 # if no mic (= no -m), only record from snd/$sndio_device.mon
 #	and the only filter is aresample=async=1
 
 if [ $noaudio -lt 1 -a $mic -lt 1 ]; then
 	#only monitoring stream
-	ffmpeg $BASE -f sndio -i snd/$sndio_device.mon $AUDIO -f nut pipe:1 | \
-	ffmpeg $BASE -f nut -itsoffset $audiooffset -i pipe:0 $VIDEO -c:a copy -f "${container}" "$filename"
+	ffmpeg $GLOBAL $MON_IN $VIDEO_IN $AUDIO_CONV -c:v copy -f nut pipe:1 | \
+	ffmpeg $GLOBAL -f nut -itsoffset $audiooffset -i pipe:0 \
+		$VIDEO_CONV -c:a copy -f "${container}" "$filename"
 elif [ $noaudio -lt 1 ]; then
 	#mon + mic stream
-	ffmpeg $BASE -thread_queue_size 512 -f sndio -i "$mic_device" \
-	-thread_queue_size 512 -f sndio -i snd/$sndio_device.mon \
-	-filter_complex "[0]${AUDIOMERGE}" -map '[a]' $AUDIO -f nut pipe:1 | \
-	ffmpeg $BASE -thread_queue_size 512 -f nut -itsoffset $audiooffset -i pipe:0 $VIDEO -c:a copy -f "${container}" "$filename"
+	ffmpeg $GLOBAL -thread_queue_size 512 $MIC_IN \
+		-thread_queue_size 512 $MON_IN  $VIDEO_IN\
+		-filter_complex "${AUDIOMERGE}" -map '[a]' $AUDIO_CONV \
+		-map 2 -c:v copy -f nut pipe:1 | \
+	ffmpeg $GLOBAL -thread_queue_size 512 -f nut -itsoffset $audiooffset -i pipe:0 \
+		$VIDEO_CONV -c:a copy -f "${container}" "$filename"
 else
 	#no audio
-	ffmpeg $BASE $VIDEO -f "${container}" "$filename"
+	ffmpeg $GLOBAL $VIDEO_IN $VIDEO_CONV -f "${container}" "$filename"
 fi
