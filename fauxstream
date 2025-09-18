@@ -19,6 +19,7 @@
 ############
 # TODO:
 ############
+# - fix reverb on monitoring stream when using mic+mon mode
 # - ADD OPTION TO SAVE MIC TO SEPARATE FILE (solene request)
 # - add mention of $DISPLAY variable for the recording?
 # - AFAIK '-preset ultrafast' is specific to libx264 and needs to be disabled
@@ -206,9 +207,7 @@ elif [[ -n "$windowname" ]];then
 else
   echo -n "default"
 fi
-echo -n "): ${resolution}${offset}\n"
-
-echo "Press Ctrl+C to stop recording\n" >& 2
+echo "): ${resolution}${offset}\n"
 
 # global ffmpeg options
 GLOBAL="\
@@ -271,18 +270,25 @@ AUDIOMERGE="\
 
 if [ $noaudio -lt 1 -a $mic -lt 1 ]; then
 	#only monitoring stream
-	ffmpeg $GLOBAL $MON_IN $VIDEO_IN $AUDIO_CONV -c:v copy -f nut pipe:1 | \
+	RUN="ffmpeg $GLOBAL $MON_IN $VIDEO_IN $AUDIO_CONV -c:v copy -f nut pipe:1 | \
 	ffmpeg $GLOBAL -f nut -itsoffset $audiooffset -i pipe:0 \
-		$VIDEO_CONV -c:a copy -f "${container}" "$filename"
+		$VIDEO_CONV -c:a copy -f "${container}" \"$filename\""
 elif [ $noaudio -lt 1 ]; then
 	#mon + mic stream
-	ffmpeg $GLOBAL -thread_queue_size 512 $MIC_IN \
+	RUN="ffmpeg $GLOBAL -thread_queue_size 512 $MIC_IN \
 		-thread_queue_size 512 $MON_IN  $VIDEO_IN\
-		-filter_complex "${AUDIOMERGE}" -map '[a]' $AUDIO_CONV \
+		-filter_complex \"${AUDIOMERGE}\" -map '[a]' $AUDIO_CONV \
 		-map 2 -c:v copy -f nut pipe:1 | \
 	ffmpeg $GLOBAL -thread_queue_size 512 -f nut -itsoffset $audiooffset -i pipe:0 \
-		$VIDEO_CONV -c:a copy -f "${container}" "$filename"
+		$VIDEO_CONV -c:a copy -f "${container}" \"$filename\""
 else
 	#no audio
-	ffmpeg $GLOBAL $VIDEO_IN $VIDEO_CONV -f "${container}" "$filename"
+	RUN="ffmpeg $GLOBAL $VIDEO_IN $VIDEO_CONV -f "${container}" \"$filename\""
 fi
+
+echo "$RUN\n"
+echo "Press Ctrl+C to stop recording\n" >& 2
+
+# XXX: Not ideal to use 'ksh -c', but easiest way to handle quoted strings
+#      with whitespace. Would be preferable to find a solution to run with exec.
+ksh -c "$RUN"
