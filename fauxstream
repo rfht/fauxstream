@@ -220,6 +220,7 @@ GLOBAL="\
 VIDEO_IN="\
 -thread_queue_size 512 \
 -show_region 1 \
+${video_device} \
 -f x11grab \
 -video_size $resolution \
 -framerate $framerate \
@@ -227,7 +228,6 @@ VIDEO_IN="\
 "
 
 VIDEO_CONV="\
-${video_device} \
 ${video_output_fps} \
 -c:v $videocodec \
 -profile:v high \
@@ -244,11 +244,13 @@ ${video_format} \
 "
 
 MON_IN="\
+-thread_queue_size 512 \
 -f sndio \
 -i snd/mon\
 "
 
 MIC_IN="\
+-thread_queue_size 512 \
 -f sndio \
 -i "$mic_device"\
 "
@@ -270,20 +272,29 @@ AUDIOMERGE="\
 
 if [ $noaudio -lt 1 -a $mic -lt 1 ]; then
 	#only monitoring stream
-	RUN="ffmpeg $GLOBAL $MON_IN $VIDEO_IN $AUDIO_CONV -c:v copy -f nut pipe:1 | \
-	ffmpeg $GLOBAL -f nut -itsoffset $audiooffset -i pipe:0 \
-		$VIDEO_CONV -c:a copy -f "${container}" \"$filename\""
+	RUN="ffmpeg $GLOBAL \
+    $MON_IN \
+    $AUDIO_CONV -f nut pipe:1 | \
+	ffmpeg $GLOBAL \
+    -thread_queue_size 512 -f nut -itsoffset $audiooffset -i pipe:0 \
+		$VIDEO_IN $VIDEO_CONV -c:a copy \
+    -f "${container}" \"$filename\""
 elif [ $noaudio -lt 1 ]; then
 	#mon + mic stream
-	RUN="ffmpeg $GLOBAL -thread_queue_size 512 $MIC_IN \
-		-thread_queue_size 512 $MON_IN  $VIDEO_IN\
-		-filter_complex \"${AUDIOMERGE}\" -map '[a]' $AUDIO_CONV \
-		-map 2 -c:v copy -f nut pipe:1 | \
-	ffmpeg $GLOBAL -thread_queue_size 512 -f nut -itsoffset $audiooffset -i pipe:0 \
-		$VIDEO_CONV -c:a copy -f "${container}" \"$filename\""
+	RUN="ffmpeg $GLOBAL \
+    $MIC_IN \
+		$MON_IN  \
+		-filter_complex \"${AUDIOMERGE}\" -map '[a]' \
+    $AUDIO_CONV -f nut pipe:1 | \
+	ffmpeg $GLOBAL \
+    -thread_queue_size 512 -f nut -itsoffset $audiooffset -i pipe:0 \
+		$VIDEO_IN $VIDEO_CONV -c:a copy \
+    -f "${container}" \"$filename\""
 else
 	#no audio
-	RUN="ffmpeg $GLOBAL $VIDEO_IN $VIDEO_CONV -f "${container}" \"$filename\""
+	RUN="ffmpeg $GLOBAL \
+    $VIDEO_IN $VIDEO_CONV \
+    -f "${container}" \"$filename\""
 fi
 
 echo "$RUN\n"
