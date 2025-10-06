@@ -48,7 +48,7 @@ USAGE="Usage: `basename $0` [-p preset] [-m] [-d mic_device] [-a audiooffset] [-
 
 audiooffset=0.0
 audio_bitrate=96
-bufsize=
+audio_bufsize=
 container=flv
 filename=
 framerate=30
@@ -70,6 +70,7 @@ scale_w=
 threads=0
 videocodec=libx264
 video_bitrate=3500
+video_bufsize=
 video_device=
 video_format=
 video_output_fps=
@@ -150,8 +151,9 @@ else
 	video_output_fps="-r $framerate"
 fi
 
-bufsize=`expr $video_bitrate \* 2`
-gop=`expr $framerate \* 2`
+audio_bufsize="$((audio_bitrate * 2))"
+video_bufsize="$((video_bitrate * 2))"
+gop="$((framerate * 2))"
 
 
 sndio_device="$(sndioctl -n server.device | cut -f1 -d'(')"
@@ -233,7 +235,7 @@ ${video_output_fps} \
 -b:v ${video_bitrate}k \
 -minrate ${video_bitrate}k \
 -maxrate ${video_bitrate}k \
--bufsize ${bufsize}k \
+-bufsize ${video_bufsize}k \
 -preset ultrafast \
 -tune zerolatency \
 ${video_format} \
@@ -255,6 +257,9 @@ MIC_IN="\
 AUDIO_CONV="\
 -c:a aac \
 -b:a ${audio_bitrate}k \
+-minrate ${audio_bitrate}k \
+-maxrate ${audio_bitrate}k \
+-bufsize ${audio_bufsize}k \
 -aac_coder fast\
 "
 
