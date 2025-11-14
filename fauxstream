@@ -272,29 +272,18 @@ AUDIOMERGE="\
 
 if [ $noaudio -lt 1 -a $mic -lt 1 ]; then
 	#only monitoring stream
-	RUN="ffmpeg $GLOBAL \
-    $MON_IN \
-    $AUDIO_CONV -f nut pipe:1 | \
-	ffmpeg $GLOBAL \
-    -thread_queue_size 512 -f nut -itsoffset $audiooffset -i pipe:0 \
-		$VIDEO_IN $VIDEO_CONV -c:a copy \
-    -f "${container}" \"$filename\""
+	RUN="ffmpeg $GLOBAL $MON_IN $AUDIO_CONV -f nut pipe:1 | \
+	ffmpeg $GLOBAL -thread_queue_size 512 -f nut -itsoffset $audiooffset -i pipe:0 \
+		$VIDEO_IN $VIDEO_CONV -c:a copy -f "${container}" \"$filename\""
 elif [ $noaudio -lt 1 ]; then
 	#mon + mic stream
-	RUN="ffmpeg $GLOBAL \
-    $MIC_IN \
-		$MON_IN  \
-		-filter_complex \"${AUDIOMERGE}\" -map '[a]' \
-    $AUDIO_CONV -f nut pipe:1 | \
-	ffmpeg $GLOBAL \
-    -thread_queue_size 512 -f nut -itsoffset $audiooffset -i pipe:0 \
-		$VIDEO_IN $VIDEO_CONV -c:a copy \
-    -f "${container}" \"$filename\""
+	RUN="ffmpeg $GLOBAL $MIC_IN $MON_IN -filter_complex \"${AUDIOMERGE}\" \
+		-map '[a]' $AUDIO_CONV -f nut pipe:1 | \
+	ffmpeg $GLOBAL -thread_queue_size 512 -f nut -itsoffset $audiooffset -i pipe:0 \
+		$VIDEO_IN $VIDEO_CONV -c:a copy -f "${container}" \"$filename\""
 else
 	#no audio
-	RUN="ffmpeg $GLOBAL \
-    $VIDEO_IN $VIDEO_CONV \
-    -f "${container}" \"$filename\""
+	RUN="ffmpeg $GLOBAL $VIDEO_IN $VIDEO_CONV -f "${container}" \"$filename\""
 fi
 
 echo "$RUN\n"
