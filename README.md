@@ -61,19 +61,26 @@ Usage
 -----
 
 ```
-fauxstream [-vmon <factor>] [-m [-vmic <factor>]]
-    [-r <size> [-o <offset>] | -fullscreen | -n <name>]
-	[-f <framerate>] [-a <seconds>] <target>
+fauxstream [-p <preset>] [-vmon <factor>] [-m [-vmic <factor>]]
+	[-d <mic_device>] [-ab <audio_bitrate>] [-vb <video_bitrate]
+	[-r <size> [-o <window_offset>] | -fullscreen | -n <name>]
+	[-s <scaled_resolution>]
+	[-f <framerate>] [-a <audio_offset>] <target>
 
--m:	enable microphone stream (in addition to monitoring stream)
--vmon:	factor to adjust volume of the monitoring stream
--vmic:	factor to adjust volume of the microphone stream
--r:	set video size (resolution; default: 1280x720)
--o: set video offset (from top left; default: +0,0)
--fullscreen: set video size & offset to root window geometry (supersedes -r and -o)
--n: set video size to geometry of named window (supersedess -r, -o, and -fullscreen)
--f:	set video framerate (default: 30)
 -a:	set audio offset (in seconds; can be negative)
+-ab:	audio bitrate (default: 96)
+-d:	set microphone device (default: snd/0)
+-f:	set video framerate (default: 30)
+-fullscreen: set video size & offset to root window geometry (supersedes -r and -o)
+-m:	enable microphone stream (in addition to monitoring stream)
+-n:	set video size to geometry of named window (supersedess -r, -o, and -fullscreen)
+-o:	set video offset (from top left; default: +0+0)
+-p:	use preset (e.g. `vaapi`)
+-r:	set video size (resolution; default: 1280x720)
+-s:	resolution to scale to (e.g. `1600x900`)
+-vb:	set video bitrate (default: 3500)
+-vmic:	factor to adjust volume of the microphone stream
+-vmon:	factor to adjust volume of the monitoring stream
 
 The target can be a file or a remote streaming address (`rtmp://`).
 ```
@@ -81,10 +88,17 @@ The target can be a file or a remote streaming address (`rtmp://`).
 Examples:
 -----------
 
-### Stream to Twitch:
+### Stream to PeerTube:
 
 ```
 fauxstream -m -vmic 5.0 -vmon 0.25 -r 1920x1080 -f 30 -a -0.2 \
+	"rtmp://my.peertube.instance:1935/live/<STREAM_KEY>
+```
+
+### Stream to Twitch:
+
+```
+fauxstream -m -vmic 5.0 -vmon 0.25 -r 1920x1080 -f 30 \
 	"rtmp://<SERVER>.twitch.tv/app/<STREAM_KEY>
 ```
 
