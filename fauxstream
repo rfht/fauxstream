@@ -48,7 +48,7 @@ USAGE="Usage: `basename $0` [-p preset] [-m] [-d mic_device] [-a audiooffset] [-
 
 audiooffset=0.0
 audio_bitrate=96
-bufsize=
+audio_bufsize=
 container=flv
 filename=
 framerate=30
@@ -70,6 +70,7 @@ scale_w=
 threads=0
 videocodec=libx264
 video_bitrate=3500
+video_bufsize=
 video_device=
 video_format=
 video_output_fps=
@@ -150,8 +151,9 @@ else
 	video_output_fps="-r $framerate"
 fi
 
-bufsize=`expr $video_bitrate \* 2`
-gop=`expr $framerate \* 2`
+audio_bufsize="$((audio_bitrate * 2))"
+video_bufsize="$((video_bitrate * 2))"
+gop="$((framerate * 2))"
 
 
 sndio_device="$(sndioctl -n server.device | cut -f1 -d'(')"
@@ -213,12 +215,11 @@ echo "): ${resolution}${offset}\n"
 GLOBAL="\
 -hide_banner \
 -loglevel error \
--thread_queue_size 512 \
 -threads $threads\
 "
 
 VIDEO_IN="\
--thread_queue_size 512 \
+-thread_queue_size 64 \
 -show_region 1 \
 ${video_device} \
 -f x11grab \
@@ -234,7 +235,7 @@ ${video_output_fps} \
 -b:v ${video_bitrate}k \
 -minrate ${video_bitrate}k \
 -maxrate ${video_bitrate}k \
--bufsize ${bufsize}k \
+-bufsize ${video_bufsize}k \
 -preset ultrafast \
 -tune zerolatency \
 ${video_format} \
@@ -244,13 +245,11 @@ ${video_format} \
 "
 
 MON_IN="\
--thread_queue_size 512 \
 -f sndio \
 -i snd/mon\
 "
 
 MIC_IN="\
--thread_queue_size 512 \
 -f sndio \
 -i "$mic_device"\
 "
@@ -258,12 +257,15 @@ MIC_IN="\
 AUDIO_CONV="\
 -c:a aac \
 -b:a ${audio_bitrate}k \
+-minrate ${audio_bitrate}k \
+-maxrate ${audio_bitrate}k \
+-bufsize ${audio_bufsize}k \
 -aac_coder fast\
 "
 
 AUDIOMERGE="\
-[0]volume=$volume_mic,aformat=channel_layouts=stereo$hilopass[l];\
-[1]volume=$volume_mon,aformat=channel_layouts=stereo[m];\
+[0]aresample=async=1,volume=$volume_mic,aformat=channel_layouts=stereo$hilopass[l];\
+[1]aresample=async=1,volume=$volume_mon,aformat=channel_layouts=stereo[m];\
 [l][m]amix=inputs=2[a]\
 "
 
@@ -272,15 +274,17 @@ AUDIOMERGE="\
 
 if [ $noaudio -lt 1 -a $mic -lt 1 ]; then
 	#only monitoring stream
-	RUN="ffmpeg $GLOBAL $MON_IN $AUDIO_CONV -f nut pipe:1 | \
-	ffmpeg $GLOBAL -thread_queue_size 512 -f nut -itsoffset $audiooffset -i pipe:0 \
-		$VIDEO_IN $VIDEO_CONV -c:a copy -f "${container}" \"$filename\""
+	RUN="ffmpeg $GLOBAL $MON_IN -f nut pipe:1 | \
+	ffmpeg $GLOBAL -thread_queue_size 64 -f nut -itsoffset $audiooffset -i pipe:0 \
+		-filter_complex aresample=async=1 $VIDEO_IN $VIDEO_CONV $AUDIO_CONV \
+		-f "${container}" \"$filename\""
 elif [ $noaudio -lt 1 ]; then
 	#mon + mic stream
-	RUN="ffmpeg $GLOBAL $MIC_IN $MON_IN -filter_complex \"${AUDIOMERGE}\" \
-		-map '[a]' $AUDIO_CONV -f nut pipe:1 | \
-	ffmpeg $GLOBAL -thread_queue_size 512 -f nut -itsoffset $audiooffset -i pipe:0 \
-		$VIDEO_IN $VIDEO_CONV -c:a copy -f "${container}" \"$filename\""
+	RUN="ffmpeg $GLOBAL $MIC_IN $MON_IN  -filter_complex \"${AUDIOMERGE}\" -map '[a]' \
+		-f nut pipe:1 | \
+	ffmpeg $GLOBAL -thread_queue_size 64 -f nut -itsoffset $audiooffset -i pipe:0 \
+		-filter_complex aresample=async=1 $VIDEO_IN $VIDEO_CONV $AUDIO_CONV \
+		-f "${container}" \"$filename\""
 else
 	#no audio
 	RUN="ffmpeg $GLOBAL $VIDEO_IN $VIDEO_CONV -f "${container}" \"$filename\""
