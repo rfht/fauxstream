@@ -1,7 +1,7 @@
 #!/bin/sh
 
 ########
-# Copyright (c) 2018-2025 Thomas Frohwein <thfr@openbsd.org>
+# Copyright (c) 2018-2026 Thomas Frohwein <thfr@openbsd.org>
 #
 # Permission to use, copy, modify, and distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -19,7 +19,8 @@
 ############
 # TODO:
 ############
-# - fix reverb on monitoring stream when using mic+mon mode
+# - fix reverb on monitoring stream when using mic+mon mode (seems only with high -vmic)
+#   -> this appears to happen when there is a difference between vmic and vmon
 # - ADD OPTION TO SAVE MIC TO SEPARATE FILE (solene request)
 # - add mention of $DISPLAY variable for the recording?
 # - AFAIK '-preset ultrafast' is specific to libx264 and needs to be disabled
@@ -41,7 +42,7 @@
 # - audio offset needs to be applied to the audio in the second ffmpeg,
 #   right of the pipe.
 # - keyframing should be every 2s and automatic scene change detection should
-#   be disabled per twich, videoberg recommendations.
+#   be disabled per twitch, videoberg recommendations.
 ###########
 
 USAGE="Usage: `basename $0` [-p preset] [-m] [-d mic_device] [-a audiooffset] [-ab audio_bitrate] [-n window_name] [-c codec] [-vb bitrate] [-r resolution] [-o offset] [-fullscreen] [-s <scale_x>:<scale_y>] [-f framerate] [-v volume_adjustment] [-vmic mic_volume] [-vmon monitor_volume] [-t threads ] [-noaudio] [-crf crf] <rtmp url>"
@@ -64,6 +65,7 @@ offset=
 #preset=		# don't set $preset, so that ${#preset[*]} == 0 can be used
 preset_vaapi=
 resolution=1280x720
+rtmp_conf=
 scaleres=
 scale_h=
 scale_w=
@@ -142,12 +144,17 @@ if [[ $preset_vaapi -eq 1 ]]; then
 	else
 		video_format="-vf "format=nv12,hwupload""
 	fi
+	video_format="${video_format} -qp 18"
 else
 	if [[ -n "$scaleres" ]]; then
 		scaleres="scale=${scaleres},"
 	fi
 	video_format="-vf "${scaleres}format=yuv420p""
 	video_output_fps="-r $framerate"
+fi
+
+if [[ $(echo "$filename" | grep -q ^rtmp:) -eq 0 ]]; then
+	rtmp_conf="-rtmp_live live"
 fi
 
 bufsize=`expr $video_bitrate \* 2`
@@ -213,7 +220,6 @@ echo "): ${resolution}${offset}\n"
 GLOBAL="\
 -hide_banner \
 -loglevel error \
--thread_queue_size 512 \
 -threads $threads\
 "
 
@@ -237,6 +243,7 @@ ${video_output_fps} \
 -bufsize ${bufsize}k \
 -preset ultrafast \
 -tune zerolatency \
+-frame_drop_threshold 1.0 \
 ${video_format} \
 -g $gop \
 -keyint_min $framerate \
@@ -252,7 +259,7 @@ MON_IN="\
 MIC_IN="\
 -thread_queue_size 512 \
 -f sndio \
--i "$mic_device"\
+-i ${mic_device}\
 "
 
 AUDIO_CONV="\
@@ -262,9 +269,9 @@ AUDIO_CONV="\
 "
 
 AUDIOMERGE="\
-[0]volume=$volume_mic,aformat=channel_layouts=stereo$hilopass[l];\
-[1]volume=$volume_mon,aformat=channel_layouts=stereo[m];\
-[l][m]amix=inputs=2[a]\
+[0]volume=volume=$volume_mic:precision=fixed,aformat=channel_layouts=stereo$hilopass[l];\
+[1]volume=volume=$volume_mon:precision=fixed,aformat=channel_layouts=stereo[m];\
+[l][m]amix=inputs=2,asetpts='(RTCTIME - RTCSTART) / (TB * 1000000)',aresample=async=1[a]\
 "
 
 # if no mic (= no -m), only record from snd/$sndio_device.mon
@@ -274,16 +281,19 @@ if [ $noaudio -lt 1 -a $mic -lt 1 ]; then
 	#only monitoring stream
 	RUN="ffmpeg $GLOBAL $MON_IN $AUDIO_CONV -f nut pipe:1 | \
 	ffmpeg $GLOBAL -thread_queue_size 512 -f nut -itsoffset $audiooffset -i pipe:0 \
-		$VIDEO_IN $VIDEO_CONV -c:a copy -f "${container}" \"$filename\""
+		$VIDEO_IN $VIDEO_CONV -c:a copy -f ${container} ${rtmp_conf} \
+		\"$filename\""
 elif [ $noaudio -lt 1 ]; then
 	#mon + mic stream
 	RUN="ffmpeg $GLOBAL $MIC_IN $MON_IN -filter_complex \"${AUDIOMERGE}\" \
 		-map '[a]' $AUDIO_CONV -f nut pipe:1 | \
-	ffmpeg $GLOBAL -thread_queue_size 512 -f nut -itsoffset $audiooffset -i pipe:0 \
-		$VIDEO_IN $VIDEO_CONV -c:a copy -f "${container}" \"$filename\""
+	ffmpeg $GLOBAL -thread_queue_size 512 -drop_changed 1 -f nut -itsoffset $audiooffset -i pipe:0 \
+		$VIDEO_IN $VIDEO_CONV -c:a copy -f ${container} ${rtmp_conf} \
+		\"$filename\""
 else
 	#no audio
-	RUN="ffmpeg $GLOBAL $VIDEO_IN $VIDEO_CONV -f "${container}" \"$filename\""
+	RUN="ffmpeg $GLOBAL $VIDEO_IN $VIDEO_CONV -f ${container} ${rtmp_conf} \
+		\"$filename\""
 fi
 
 echo "$RUN\n"
