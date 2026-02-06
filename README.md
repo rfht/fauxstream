@@ -35,6 +35,20 @@ Requirements
   # sysctl kern.audio.record=1
   ```
 
+Preparations
+------------
+
+Things to consider before starting a stream on OpenBSD.
+
+```
+# sysctl kern.{audio,video}.record=1	# enable microphone and webcam recording
+$ apm -H 				# increase hw.setperf performance level
+$ ifconfig 				# check connection (prefer ethernet)
+$ sndioctl input.level=1.0		# increase microphone input volume
+```
+
+Also test the game audio balance; lower game audio volume in the game's options preferably, and avoid using `-vmic`/`-vmon` if possible.
+
 Known Limitations
 -----------------
 
@@ -91,14 +105,14 @@ Examples:
 ### Stream to PeerTube:
 
 ```
-fauxstream -m -vmic 5.0 -vmon 0.25 -r 1920x1080 -f 30 -a -0.2 \
+fauxstream -m -r 1920x1080 -f 30 -a -0.2 \
 	"rtmp://my.peertube.instance:1935/live/<STREAM_KEY>
 ```
 
 ### Stream to Twitch:
 
 ```
-fauxstream -m -vmic 5.0 -vmon 0.25 -r 1920x1080 -f 30 \
+fauxstream -m -r 1920x1080 -f 30 \
 	"rtmp://<SERVER>.twitch.tv/app/<STREAM_KEY>
 ```
 
@@ -135,6 +149,10 @@ A: Unfortunately, it's just recording the screen geometry of where
 the window was when you started recording. Any overlapping windows
 will be included in the recorded area and moving the window will
 result in it moving outside of the recorded area.
+
+**Q: There is significant reverb/echo on my monitoring stream. How do I get rid of it?**
+
+A: This seems to occur mainly when using both mic & monitoring stream (`-m`) and the microphone volume (`-vmic`) is set significantly higher than the monitor volume (`-vmon`). I'm not certain how this leads to reverb. As a workaround, don't use `-vmic`/`-vmon` or set them to the same value and adjust those values outside of fauxstream. For example, increase the microphone gain on OpenBSD with `$ sndioctl input.level=1.0`, and decrease the game's volume in the the game's audio options.
 
 Related Links:
 --------------
