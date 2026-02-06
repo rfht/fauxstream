@@ -21,19 +21,17 @@
 ############
 # - fix reverb on monitoring stream when using mic+mon mode (seems only with high -vmic)
 #   -> this appears to happen when there is a difference between vmic and vmon
-# - ADD OPTION TO SAVE MIC TO SEPARATE FILE (solene request)
+# - add option to save mic to separate file (solene request)
 # - add mention of $DISPLAY variable for the recording?
-# - AFAIK '-preset ultrafast' is specific to libx264 and needs to be disabled
-#   for use of other codecs
 # - get default framerate from xrandr? same for resolution - default to desktop
 #   resolution?
 # - document windowname (-n) needs to be in "" if multiple words
-# - document that window needs to be visible/on top
 # - document that compositor has negative effect on smoothness
-# - document '-m' turns on recording from mic
 # - may not need as many 'thread_queue_size options, but definitely for the -f sndio inputs
-# - add '-s $OUTRES' ??
 # - add man page
+# - add switch for quality (-q?) that governs libx264 ultrafast etc., and h264_vaapi's -qp
+# - AFAIK '-preset ultrafast' is specific to libx264 and needs to be disabled
+#   for use of other codecs
 ###########
 
 ###########
