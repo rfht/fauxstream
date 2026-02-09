@@ -29,7 +29,7 @@
 # - document that compositor has negative effect on smoothness
 # - may not need as many 'thread_queue_size options, but definitely for the -f sndio inputs
 # - add man page
-# - add switch for quality (-q?) that governs libx264 ultrafast etc., and h264_vaapi's -qp
+# - add switch for quality (-q?) that governs libx264 ultrafast etc., and h264_vaapi's -compression_level
 # - AFAIK '-preset ultrafast' is specific to libx264 and needs to be disabled
 #   for use of other codecs
 ###########
@@ -41,9 +41,20 @@
 #   right of the pipe.
 # - keyframing should be every 2s and automatic scene change detection should
 #   be disabled per twitch, videoberg recommendations.
+# - for AMD VAAPI: compression_levels:
+# 	0: speed preset only
+# 	1: balanced preset with pre-encode and VBAQ (recommended)
+# 	29: quality preset with pre-encode and VBAQ
+# - TXAA seems to blur things in motion a lot in the recordings
+# - get details on arguments for an encoder this way:
+# 	$ ffmpeg -h encoder=h264_vaapi
+# - H.264 options description: https://en.wikipedia.org/wiki/Advanced_Video_Coding
+# 	(e.g. level, profile)
+# - VAAPI codec support depends on the hardware. Radeon RX 6700 XT (VCN 2.0) supports
+# 	encoding H.264 and H.265 (HEVC), but not AV1.
 ###########
 
-USAGE="Usage: `basename $0` [-p preset] [-m] [-d mic_device] [-a audiooffset] [-ab audio_bitrate] [-n window_name] [-c codec] [-vb bitrate] [-r resolution] [-o offset] [-fullscreen] [-s <scale_x>:<scale_y>] [-f framerate] [-v volume_adjustment] [-vmic mic_volume] [-vmon monitor_volume] [-t threads ] [-noaudio] [-crf crf] <rtmp url>"
+USAGE="Usage: `basename $0` [-p preset] [-m] [-d mic_device] [-mf] [-a audiooffset] [-ab audio_bitrate] [-n window_name] [-c codec] [-vb bitrate] [-r resolution] [-o offset] [-fullscreen] [-s <scale_x>:<scale_y>] [-f framerate] [-v volume_adjustment] [-vmic mic_volume] [-vmon monitor_volume] [-t threads ] [-noaudio] [-crf crf] <rtmp url>"
 
 audiooffset=0.0
 audio_bitrate=96
@@ -55,10 +66,11 @@ fullscreen=0
 gop=
 heightline=
 heightval=
-hilopass=",lowpass=3000,highpass=200,afftdn"
+mic_filter=
 mic=0
 mic_device=snd/0
 noaudio=0
+no_scenecut=
 offset=
 #preset=		# don't set $preset, so that ${#preset[*]} == 0 can be used
 preset_vaapi=
@@ -68,7 +80,7 @@ scaleres=
 scale_h=
 scale_w=
 threads=0
-videocodec=libx264
+videocodec=
 video_bitrate=3500
 video_device=
 video_format=
@@ -102,7 +114,7 @@ do
 		-f) framerate="$2"; shift;;
 		-fullscreen) fullscreen=1;;
 		-h) echo $USAGE; exit 0;;
-		-hl) hilopass="";;
+		-mf) mic_filter=",lowpass=3000,highpass=200,afftdn";;
 		-m) mic=1;;
 		-n) windowname="$2"; shift;;
 		-noaudio) noaudio=1;;
@@ -133,16 +145,28 @@ for p in ${preset[@]}; do
 done
 
 if [[ $preset_vaapi -eq 1 ]]; then
-	videocodec=h264_vaapi
+	if [[ -z "$videocodec" ]]; then
+		videocodec=h264
+	fi
+	if $(echo $videocodec | grep -q _vaapi$) ; then
+		echo "Error: For vaapi, specify codec without '_vaapi'"
+		echo "Examples: h264, hevc"
+		exit 1;
+	fi
+	videocodec="${videocodec}_vaapi"
 	video_device="-vaapi_device /dev/dri/renderD128"
 	if [[ -n "$scaleres" ]]; then
 		scale_w=$(echo $scaleres | cut -dx -f1)
 		scale_h=$(echo $scaleres | cut -dx -f2)
 		video_format="-vf "hwupload,scale_vaapi=w=${scale_w}:h=${scale_h}:format=nv12""
 	else
-		video_format="-vf "format=nv12,hwupload""
+		video_format="-vf "hwupload,scale_vaapi=format=nv12""
 	fi
-	video_format="${video_format} -qp 18"
+	# profile: 100 = high (h264), 1 = high (av1)
+	# level: 41 = 4.1 for 1080p 30fps (h264), 9 = 4.1 for 1080p 30fps (av1)
+	if $(echo $videocodec | grep -q h264_vaapi) ; then
+		video_format="${video_format} -compression_level 1 -quality 1 -profile 100 -level 41"
+	fi
 else
 	if [[ -n "$scaleres" ]]; then
 		scaleres="scale=${scaleres},"
@@ -151,7 +175,18 @@ else
 	video_output_fps="-r $framerate"
 fi
 
-if [[ $(echo "$filename" | grep -q ^rtmp:) -eq 0 ]]; then
+# default to libx264 video codec
+if [[ -z "$videocodec" ]]; then
+	videocodec=libx264
+fi
+
+if $(echo "$videocodec" | egrep -q "[hx]264") ; then
+	no_scenecut="-x264-params no-scenecut=1"
+elif $(echo "$videocodec" | egrep -q "(hevc|x265)") ; then
+	no_scenecut="-x265-params no-scenecut=1"
+fi
+
+if $(echo "$filename" | grep -q ^rtmp:) ; then
 	rtmp_conf="-rtmp_live live"
 fi
 
@@ -234,19 +269,19 @@ ${video_device} \
 VIDEO_CONV="\
 ${video_output_fps} \
 -c:v $videocodec \
--profile:v high \
 -b:v ${video_bitrate}k \
 -minrate ${video_bitrate}k \
 -maxrate ${video_bitrate}k \
 -bufsize ${bufsize}k \
--preset ultrafast \
--tune zerolatency \
 -frame_drop_threshold 1.0 \
 ${video_format} \
 -g $gop \
 -keyint_min $framerate \
--x264-params no-scenecut=1\
+${no_scenecut}\
 "
+#-profile:v high \
+#-preset ultrafast \
+#-tune zerolatency \
 
 MON_IN="\
 -thread_queue_size 512 \
@@ -267,7 +302,7 @@ AUDIO_CONV="\
 "
 
 AUDIOMERGE="\
-[0]volume=volume=$volume_mic:precision=fixed,aformat=channel_layouts=stereo$hilopass[l];\
+[0]volume=volume=$volume_mic:precision=fixed,aformat=channel_layouts=stereo$mic_filter[l];\
 [1]volume=volume=$volume_mon:precision=fixed,aformat=channel_layouts=stereo[m];\
 [l][m]amix=inputs=2,asetpts='(RTCTIME - RTCSTART) / (TB * 1000000)',aresample=async=1[a]\
 "

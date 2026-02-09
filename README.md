@@ -76,7 +76,7 @@ Usage
 
 ```
 fauxstream [-p <preset>] [-vmon <factor>] [-m [-vmic <factor>]]
-	[-d <mic_device>] [-ab <audio_bitrate>] [-vb <video_bitrate]
+	[-d <mic_device>] [-mf] [-ab <audio_bitrate>] [-vb <video_bitrate]
 	[-r <size> [-o <window_offset>] | -fullscreen | -n <name>]
 	[-s <scaled_resolution>]
 	[-f <framerate>] [-a <audio_offset>] <target>
@@ -87,6 +87,7 @@ fauxstream [-p <preset>] [-vmon <factor>] [-m [-vmic <factor>]]
 -f:	set video framerate (default: 30)
 -fullscreen: set video size & offset to root window geometry (supersedes -r and -o)
 -m:	enable microphone stream (in addition to monitoring stream)
+-mf:	microphone filter - filters out frequencies not in voice spectrum, as well as noise
 -n:	set video size to geometry of named window (supersedess -r, -o, and -fullscreen)
 -o:	set video offset (from top left; default: +0+0)
 -p:	use preset (e.g. `vaapi`)
