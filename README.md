@@ -53,18 +53,16 @@ Known Limitations
 -----------------
 
 * Higher recording resolutions, non-default video codecs, or
-  simultaneously running applications may affect performance while
-  recording to the point of dropping frames and leading to
-  desynchronization.
+  simultaneously running applications may affect performance,
+  to the point of dropping frames and leading to desynchronization.
 * The recording with ffmpeg's x11grab doesn't register when an
   application goes fullscreen, and it continues to record it as being
   run in a window.
 * Likely significantly worse performance on single-core CPUs/
   single-process systems.
-* Correctly syncing audio and video streams currently requires manually
+* Correctly syncing audio and video streams may require manually
   finding the best audio offset (`-a` parameter).
-* Including a webcam video feed may introduce its own lag/desync and
-  has not been tested by me.
+* Including a webcam video feed may introduce its own lag/desync.
 
 Setting up the Monitoring Stream
 --------------------------------
@@ -154,6 +152,10 @@ result in it moving outside of the recorded area.
 **Q: There is significant reverb/echo on my monitoring stream. How do I get rid of it?**
 
 A: This seems to occur mainly when using both mic & monitoring stream (`-m`) and the microphone volume (`-vmic`) is set significantly higher than the monitor volume (`-vmon`). I'm not certain how this leads to reverb. As a workaround, don't use `-vmic`/`-vmon` or set them to the same value and adjust those values outside of fauxstream. For example, increase the microphone gain on OpenBSD with `$ sndioctl input.level=1.0`, and decrease the game's volume in the the game's audio options.
+
+# WIP: Unsolved Problems
+
+- [ ] stream aborts in random spot with: `[vost#0:0/h264_vaapi @ 0x3225a263000] Error submitting a packet to the muxer: End of file`
 
 Related Links:
 --------------

@@ -1,7 +1,7 @@
 #!/bin/sh
 
 ########
-# Copyright (c) 2018-2026 Thomas Frohwein <thfr@openbsd.org>
+# Copyright (c) 2018-2025 Thomas Frohwein <thfr@openbsd.org>
 #
 # Permission to use, copy, modify, and distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -19,19 +19,20 @@
 ############
 # TODO:
 ############
-# - fix reverb on monitoring stream when using mic+mon mode (seems only with high -vmic)
-#   -> this appears to happen when there is a difference between vmic and vmon
-# - add option to save mic to separate file (solene request)
+# - fix reverb on monitoring stream when using mic+mon mode
+# - ADD OPTION TO SAVE MIC TO SEPARATE FILE (solene request)
 # - add mention of $DISPLAY variable for the recording?
+# - AFAIK '-preset ultrafast' is specific to libx264 and needs to be disabled
+#   for use of other codecs
 # - get default framerate from xrandr? same for resolution - default to desktop
 #   resolution?
 # - document windowname (-n) needs to be in "" if multiple words
+# - document that window needs to be visible/on top
 # - document that compositor has negative effect on smoothness
+# - document '-m' turns on recording from mic
 # - may not need as many 'thread_queue_size options, but definitely for the -f sndio inputs
+# - add '-s $OUTRES' ??
 # - add man page
-# - add switch for quality (-q?) that governs libx264 ultrafast etc., and h264_vaapi's -compression_level
-# - AFAIK '-preset ultrafast' is specific to libx264 and needs to be disabled
-#   for use of other codecs
 ###########
 
 ###########
@@ -40,21 +41,10 @@
 # - audio offset needs to be applied to the audio in the second ffmpeg,
 #   right of the pipe.
 # - keyframing should be every 2s and automatic scene change detection should
-#   be disabled per twitch, videoberg recommendations.
-# - for AMD VAAPI: compression_levels:
-# 	0: speed preset only
-# 	1: balanced preset with pre-encode and VBAQ (recommended)
-# 	29: quality preset with pre-encode and VBAQ
-# - TXAA seems to blur things in motion a lot in the recordings
-# - get details on arguments for an encoder this way:
-# 	$ ffmpeg -h encoder=h264_vaapi
-# - H.264 options description: https://en.wikipedia.org/wiki/Advanced_Video_Coding
-# 	(e.g. level, profile)
-# - VAAPI codec support depends on the hardware. Radeon RX 6700 XT (VCN 2.0) supports
-# 	encoding H.264 and H.265 (HEVC), but not AV1.
+#   be disabled per twich, videoberg recommendations.
 ###########
 
-USAGE="Usage: `basename $0` [-p preset] [-m] [-d mic_device] [-mf] [-a audiooffset] [-ab audio_bitrate] [-n window_name] [-c codec] [-vb bitrate] [-r resolution] [-o offset] [-fullscreen] [-s <scale_x>:<scale_y>] [-f framerate] [-v volume_adjustment] [-vmic mic_volume] [-vmon monitor_volume] [-t threads ] [-noaudio] [-crf crf] <rtmp url>"
+USAGE="Usage: `basename $0` [-p preset] [-m] [-d mic_device] [-a audiooffset] [-ab audio_bitrate] [-n window_name] [-c codec] [-vb bitrate] [-r resolution] [-o offset] [-fullscreen] [-s <scale_x>x<scale_y>] [-f framerate] [-v volume_adjustment] [-vmic mic_volume] [-vmon monitor_volume] [-t threads ] [-noaudio] [-crf crf] <rtmp url>"
 
 audiooffset=0.0
 audio_bitrate=96
@@ -66,21 +56,19 @@ fullscreen=0
 gop=
 heightline=
 heightval=
-mic_filter=
+hilopass=",lowpass=3000,highpass=200,afftdn"
 mic=0
 mic_device=snd/0
 noaudio=0
-no_scenecut=
 offset=
 #preset=		# don't set $preset, so that ${#preset[*]} == 0 can be used
 preset_vaapi=
 resolution=1280x720
-rtmp_conf=
 scaleres=
 scale_h=
 scale_w=
 threads=0
-videocodec=
+videocodec=libx264
 video_bitrate=3500
 video_device=
 video_format=
@@ -114,7 +102,7 @@ do
 		-f) framerate="$2"; shift;;
 		-fullscreen) fullscreen=1;;
 		-h) echo $USAGE; exit 0;;
-		-mf) mic_filter=",lowpass=3000,highpass=200,afftdn";;
+		-hl) hilopass="";;
 		-m) mic=1;;
 		-n) windowname="$2"; shift;;
 		-noaudio) noaudio=1;;
@@ -145,27 +133,14 @@ for p in ${preset[@]}; do
 done
 
 if [[ $preset_vaapi -eq 1 ]]; then
-	if [[ -z "$videocodec" ]]; then
-		videocodec=h264
-	fi
-	if $(echo $videocodec | grep -q _vaapi$) ; then
-		echo "Error: For vaapi, specify codec without '_vaapi'"
-		echo "Examples: h264, hevc"
-		exit 1;
-	fi
-	videocodec="${videocodec}_vaapi"
+	videocodec=h264_vaapi
 	video_device="-vaapi_device /dev/dri/renderD128"
 	if [[ -n "$scaleres" ]]; then
 		scale_w=$(echo $scaleres | cut -dx -f1)
 		scale_h=$(echo $scaleres | cut -dx -f2)
 		video_format="-vf "hwupload,scale_vaapi=w=${scale_w}:h=${scale_h}:format=nv12""
 	else
-		video_format="-vf "hwupload,scale_vaapi=format=nv12""
-	fi
-	# profile: 100 = high (h264), 1 = high (av1)
-	# level: 41 = 4.1 for 1080p 30fps (h264), 9 = 4.1 for 1080p 30fps (av1)
-	if $(echo $videocodec | grep -q h264_vaapi) ; then
-		video_format="${video_format} -compression_level 1 -quality 1 -profile:v 100 -level 41"
+		video_format="-vf "format=nv12,hwupload""
 	fi
 else
 	if [[ -n "$scaleres" ]]; then
@@ -173,21 +148,6 @@ else
 	fi
 	video_format="-vf "${scaleres}format=yuv420p""
 	video_output_fps="-r $framerate"
-fi
-
-# default to libx264 video codec
-if [[ -z "$videocodec" ]]; then
-	videocodec=libx264
-fi
-
-if $(echo "$videocodec" | egrep -q "[hx]264") ; then
-	no_scenecut="-x264-params no-scenecut=1"
-elif $(echo "$videocodec" | egrep -q "(hevc|x265)") ; then
-	no_scenecut="-x265-params no-scenecut=1"
-fi
-
-if $(echo "$filename" | grep -q ^rtmp:) ; then
-	rtmp_conf="-rtmp_live live"
 fi
 
 bufsize=`expr $video_bitrate \* 2`
@@ -252,12 +212,12 @@ echo "): ${resolution}${offset}\n"
 # global ffmpeg options
 GLOBAL="\
 -hide_banner \
--loglevel warning \
+-loglevel error \
 -threads $threads\
 "
 
 VIDEO_IN="\
--thread_queue_size 512 \
+-thread_queue_size 64 \
 -show_region 1 \
 ${video_device} \
 -f x11grab \
@@ -269,19 +229,18 @@ ${video_device} \
 VIDEO_CONV="\
 ${video_output_fps} \
 -c:v $videocodec \
+-profile:v high \
 -b:v ${video_bitrate}k \
 -minrate ${video_bitrate}k \
 -maxrate ${video_bitrate}k \
 -bufsize ${bufsize}k \
--frame_drop_threshold 1.0 \
+-preset ultrafast \
+-tune zerolatency \
 ${video_format} \
 -g $gop \
 -keyint_min $framerate \
-${no_scenecut}\
+-x264-params no-scenecut=1\
 "
-#-profile:v high \
-#-preset ultrafast \
-#-tune zerolatency \
 
 MON_IN="\
 -thread_queue_size 512 \
@@ -292,7 +251,7 @@ MON_IN="\
 MIC_IN="\
 -thread_queue_size 512 \
 -f sndio \
--i ${mic_device}\
+-i "$mic_device"\
 "
 
 AUDIO_CONV="\
@@ -302,9 +261,9 @@ AUDIO_CONV="\
 "
 
 AUDIOMERGE="\
-[0]volume=volume=$volume_mic:precision=fixed,aformat=channel_layouts=stereo$mic_filter[l];\
-[1]volume=volume=$volume_mon:precision=fixed,aformat=channel_layouts=stereo[m];\
-[l][m]amix=inputs=2,asetpts='(RTCTIME - RTCSTART) / (TB * 1000000)',aresample=async=1[a]\
+[0]aresample=async=1,volume=$volume_mic,aformat=channel_layouts=stereo$hilopass[l];\
+[1]aresample=async=1,volume=$volume_mon,aformat=channel_layouts=stereo[m];\
+[l][m]amix=inputs=2[a]\
 "
 
 # if no mic (= no -m), only record from snd/$sndio_device.mon
@@ -314,22 +273,19 @@ if [ $noaudio -lt 1 -a $mic -lt 1 ]; then
 	#only monitoring stream
 	RUN="ffmpeg $GLOBAL $MON_IN $AUDIO_CONV -f nut pipe:1 | \
 	ffmpeg $GLOBAL -thread_queue_size 512 -f nut -itsoffset $audiooffset -i pipe:0 \
-		$VIDEO_IN $VIDEO_CONV -c:a copy -f ${container} ${rtmp_conf} \
-		\"$filename\""
+		$VIDEO_IN $VIDEO_CONV -c:a copy -f "${container}" \"$filename\""
 elif [ $noaudio -lt 1 ]; then
 	#mon + mic stream
 	RUN="ffmpeg $GLOBAL $MIC_IN $MON_IN -filter_complex \"${AUDIOMERGE}\" \
 		-map '[a]' $AUDIO_CONV -f nut pipe:1 | \
-	ffmpeg $GLOBAL -thread_queue_size 512 -drop_changed 1 -f nut -itsoffset $audiooffset -i pipe:0 \
-		$VIDEO_IN $VIDEO_CONV -c:a copy -f ${container} ${rtmp_conf} \
-		\"$filename\""
+	ffmpeg $GLOBAL -thread_queue_size 512 -f nut -itsoffset $audiooffset -i pipe:0 \
+		$VIDEO_IN $VIDEO_CONV -c:a copy -f "${container}" \"$filename\""
 else
 	#no audio
-	RUN="ffmpeg $GLOBAL $VIDEO_IN $VIDEO_CONV -f ${container} ${rtmp_conf} \
-		\"$filename\""
+	RUN="ffmpeg $GLOBAL $VIDEO_IN $VIDEO_CONV -f "${container}" \"$filename\""
 fi
 
-echo "$RUN\n"
+#echo "$RUN\n"	# disabled echo to not print RTMP stream keys
 echo "Press Ctrl+C to stop recording\n" >& 2
 
 # XXX: Not ideal to use 'ksh -c', but easiest way to handle quoted strings
