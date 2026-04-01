@@ -54,7 +54,7 @@
 # 	encoding H.264 and H.265 (HEVC), but not AV1.
 ###########
 
-USAGE="Usage: `basename $0` [-p preset] [-m] [-d mic_device] [-mf] [-a audiooffset] [-ab audio_bitrate] [-n window_name] [-c codec] [-vb bitrate] [-r resolution] [-o offset] [-fullscreen] [-s <scale_x>:<scale_y>] [-f framerate] [-v volume_adjustment] [-vmic mic_volume] [-vmon monitor_volume] [-t threads ] [-noaudio] [-crf crf] <rtmp url>"
+USAGE="Usage: `basename $0` [-p preset] [-m] [-d mic_device] [-mf] [-a audiooffset] [-ab audio_bitrate] [-n window_name] [-c codec] [-vb bitrate] [-r resolution] [-o offset] [-fullscreen] [-s <scale_x>x<scale_y>] [-f framerate] [-v volume_adjustment] [-vmic mic_volume] [-vmon monitor_volume] [-t threads ] [-noaudio] [-crf crf] <rtmp url>"
 
 audiooffset=0.0
 audio_bitrate=96
