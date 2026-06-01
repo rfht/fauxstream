@@ -128,6 +128,12 @@ Note this needs the required libraries. On OpenBSD, check for package `intel-med
 fauxstream -p vaapi /path/to/file.flv
 ```
 
+### Record a rectangle of size 1280x720, offset from the upper left corner by 200 pixels to the right, and 100 pixesls down
+
+```
+faustream -r 1280x720 -o +200,100 /path/to/file.flv
+```
+
 FAQ:
 ----
 
