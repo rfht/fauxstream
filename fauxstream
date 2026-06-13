@@ -54,7 +54,7 @@
 # 	encoding H.264 and H.265 (HEVC), but not AV1.
 ###########
 
-USAGE="Usage: `basename $0` [-p preset] [-m] [-d mic_device] [-mf] [-a audiooffset] [-ab audio_bitrate] [-n window_name] [-c codec] [-vb bitrate] [-r resolution] [-o offset] [-fullscreen] [-s <scale_x>x<scale_y>] [-f framerate] [-v volume_adjustment] [-vmic mic_volume] [-vmon monitor_volume] [-t threads ] [-noaudio] [-crf crf] <rtmp url>"
+USAGE="Usage: `basename $0` [-v] [-p preset] [-m] [-d mic_device] [-mf] [-a audiooffset] [-ab audio_bitrate] [-n window_name] [-c codec] [-vb bitrate] [-r resolution] [-o offset] [-fullscreen] [-s <scale_x>x<scale_y>] [-f framerate] [-q qualitypreset] [-vol volume_adjustment] [-vmic mic_volume] [-vmon monitor_volume] [-t threads ] [-noaudio] [-crf crf] <rtmp url>"
 
 audiooffset=0.0
 audio_bitrate=96
@@ -73,13 +73,15 @@ noaudio=0
 no_scenecut=
 offset=
 #preset=		# don't set $preset, so that ${#preset[*]} == 0 can be used
-preset_vaapi=
+preset_vaapi=0
+qualitypreset=ultrafast
 resolution=1280x720
 rtmp_conf=
 scaleres=
 scale_h=
 scale_w=
 threads=0
+verbose=0
 videocodec=
 video_bitrate=3500
 video_device=
@@ -120,10 +122,12 @@ do
 		-noaudio) noaudio=1;;
 		-o) offset="$2"; shift;;
 		-p) preset[${#preset[*]}]="$2"; shift;;
+		-q) qualitypreset="$2"; shift;;
 		-r) resolution="$2"; shift;;
 		-s) scaleres="$2"; shift;;
 		-t) threads="$2"; shift;;
-		-v) volume="$2"; shift;;
+		-v) verbose=1;;
+		-vol) volume="$2"; shift;;
 		-vmic) volume_mic="$2"; shift;;
 		-vmon) volume_mon="$2"; shift;;
 		-) filename="$1"; break;;
@@ -279,9 +283,10 @@ ${video_format} \
 -keyint_min $framerate \
 ${no_scenecut}\
 "
-#-profile:v high \
-#-preset ultrafast \
-#-tune zerolatency \
+
+if [ $preset_vaapi -lt 1 ]; then
+	VIDEO_CONV="${VIDEO_CONV} -profile:v high -preset $qualitypreset -tune zerolatency"
+fi
 
 MON_IN="\
 -thread_queue_size 512 \
@@ -329,7 +334,9 @@ else
 		\"$filename\""
 fi
 
-echo "$RUN\n"
+if [ $verbose -gt 0 ]; then
+	echo "$RUN\n"
+fi
 echo "Press Ctrl+C to stop recording\n" >& 2
 
 # XXX: Not ideal to use 'ksh -c', but easiest way to handle quoted strings
