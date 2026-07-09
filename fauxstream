@@ -191,7 +191,12 @@ elif $(echo "$videocodec" | egrep -q "(hevc|x265)") ; then
 fi
 
 if $(echo "$filename" | grep -q ^rtmp:) ; then
-	rtmp_conf="-rtmp_live live"
+	# OTHER POSSIBLE OPTIONS TO TRY FOR $rtmp_conf:
+	# -muxdelay and -muxpreload idea from: https://www.reddit.com/r/ffmpeg/comments/17bx4i7/broken_pipe_conversion_failed_errors_when/
+	# -reconnect and -reconnect_streamed from: https://www.virtvps.com/ffmpeg-conquer-the-frustrating-broken-pipe-er/
+	# tcp_nodelay: see tcp(4)
+	# tcp_keepalive: see SO_KEEPALIVE under getsockopt(2)
+	rtmp_conf="-rtmp_live live -tcp_keepalive 1"
 fi
 
 bufsize=`expr $video_bitrate \* 2`
