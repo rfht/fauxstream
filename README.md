@@ -25,12 +25,17 @@ streams communicating via pipes.
 
 Note that this is likely only useful on multiprocess systems/kernels.
 
+In addition, fauxstream simplifies the innumerable possible
+configurations of ffmpeg for the purpose of streaming with sane defaults
+and a manageable number of options.
+
 Requirements
 ------------
 
-* ffmpeg >= 4.0 (install from ports with `doas pkg_add ffmpeg`)
+* ffmpeg (`# pkg_add ffmpeg`)
 * OpenBSD/ksh
-* enable kern.audio.record:
+* sndiod(8) monitoring stream `snd/mon` (see [FAQ 13](https://www.openbsd.org/faq/faq13.html#recordmon))
+* enable kern.audio.record (if using the microphone stream):
   ```
   # sysctl kern.audio.record=1
   ```
@@ -60,28 +65,20 @@ Known Limitations
   run in a window.
 * Likely significantly worse performance on single-core CPUs/
   single-process systems.
-* Correctly syncing audio and video streams may require manually
-  finding the best audio offset (`-a` parameter).
-* Including a webcam video feed may introduce its own lag/desync.
-
-Setting up the Monitoring Stream
---------------------------------
-
-Refer to [FAQ 13](https://www.openbsd.org/faq/faq13.html#recordmon).
 
 Usage
 -----
 
 ```
-fauxstream [-p <preset>] [-vmon <factor>] [-m [-vmic <factor>]]
+fauxstream [-v] [-p <preset>] [-vmon <factor>] [-m [-vmic <factor>]]
 	[-d <mic_device>] [-mf] [-ab <audio_bitrate>] [-vb <video_bitrate]
 	[-r <size> [-o <window_offset>] | -fullscreen | -n <name>]
-	[-s <scaled_resolution>]
+	[-s <scaled_resolution>] [-q qualitypreset]
 	[-f <framerate>] [-a <audio_offset>] <target>
 
--a:	set audio offset (in seconds; can be negative)
+-a:	set audio offset (in seconds; can be negative and can be fractions)
 -ab:	audio bitrate (default: 96)
--d:	set microphone device (default: snd/0)
+-d:	set microphone device (default: snd/default; see `-m`)
 -f:	set video framerate (default: 30)
 -fullscreen: set video size & offset to root window geometry (supersedes -r and -o)
 -m:	enable microphone stream (in addition to monitoring stream)
@@ -89,13 +86,14 @@ fauxstream [-p <preset>] [-vmon <factor>] [-m [-vmic <factor>]]
 -n:	set video size to geometry of named window (supersedess -r, -o, and -fullscreen)
 -o:	set video offset (from top left; default: +0+0)
 -p:	use preset (e.g. `vaapi`)
+-q:	set quality preset (for libx264 codec; defaults to `ultrafast`)
 -r:	set video size (resolution; default: 1280x720)
 -s:	resolution to scale to (e.g. `1600x900`)
 -vb:	set video bitrate (default: 3500)
 -vmic:	factor to adjust volume of the microphone stream
 -vmon:	factor to adjust volume of the monitoring stream
 
-The target can be a file or a remote streaming address (`rtmp://`).
+The target can be a file or a remote streaming address; special TCP configuration will be applied to `rtmp://`, `rtmps://`, `rtmpe://`, `rtmpts://`, and `rtmpe://` (`SO_KEEPALIVE`, see getsockopt(2).
 ```
 
 Examples:
@@ -163,15 +161,8 @@ the window was when you started recording. Any overlapping windows
 will be included in the recorded area and moving the window will
 result in it moving outside of the recorded area.
 
-**Q: There is significant reverb/echo on my monitoring stream. How do I get rid of it?**
-
-A: This seems to occur mainly when using both mic & monitoring stream (`-m`) and the microphone volume (`-vmic`) is set significantly higher than the monitor volume (`-vmon`). I'm not certain how this leads to reverb. As a workaround, don't use `-vmic`/`-vmon` or set them to the same value and adjust those values outside of fauxstream. For example, increase the microphone gain on OpenBSD with `$ sndioctl input.level=1.0`, and decrease the game's volume in the the game's audio options.
-
-# WIP: Unsolved Problems
-
-- [ ] stream aborts in random spot with: `[vost#0:0/h264_vaapi @ 0x3225a263000] Error submitting a packet to the muxer: End of file`
-
 Related Links:
 --------------
 
+* https://trac.ffmpeg.org/wiki/StreamingGuide
 * https://wiki.archlinux.org/index.php/Streaming_to_twitch.tv
