@@ -104,21 +104,29 @@ Examples:
 ### Stream to PeerTube:
 
 ```
-fauxstream -m -r 1920x1080 -f 30 -a -0.2 \
+$ fauxstream -m -r 1920x1080 -f 30 -a -0.2 \
 	"rtmp://my.peertube.instance:1935/live/<STREAM_KEY>
 ```
 
 ### Stream to Twitch:
 
 ```
-fauxstream -m -r 1920x1080 -f 30 \
+$ fauxstream -m -r 1920x1080 -f 30 \
 	"rtmp://<SERVER>.twitch.tv/app/<STREAM_KEY>
 ```
 
 ### Record to file:
 
 ```
-fauxstream [...] /path/to/file.flv
+$ fauxstream [...] /path/to/file.flv
+```
+
+### Record with separate microphone device (e.g. USB microphone):
+
+Note in this example, the microphone device is attached to `/dev/audio1` which is accessed as `snd/1`.
+
+```
+$ fauxstream -m -d snd/1 ...
 ```
 
 ### Record with VAAPI hardware encoding
