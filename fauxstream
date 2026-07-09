@@ -19,17 +19,12 @@
 ############
 # TODO:
 ############
-# - fix reverb on monitoring stream when using mic+mon mode (seems only with high -vmic)
-#   -> this appears to happen when there is a difference between vmic and vmon
 # - add option to save mic to separate file (solene request)
 # - add mention of $DISPLAY variable for the recording?
-# - get default framerate from xrandr? same for resolution - default to desktop
-#   resolution?
 # - document windowname (-n) needs to be in "" if multiple words
 # - document that compositor has negative effect on smoothness
 # - may not need as many 'thread_queue_size options, but definitely for the -f sndio inputs
 # - add man page
-# - add switch for quality (-q?) that governs libx264 ultrafast etc., and h264_vaapi's -compression_level
 # - AFAIK '-preset ultrafast' is specific to libx264 and needs to be disabled
 #   for use of other codecs
 ###########
@@ -52,6 +47,8 @@
 # 	(e.g. level, profile)
 # - VAAPI codec support depends on the hardware. Radeon RX 6700 XT (VCN 2.0) supports
 # 	encoding H.264 and H.265 (HEVC), but not AV1.
+# - Using the monitoring output on my USB Meteor Mic for my headphone leads to echo
+# 	on the monitoring stream.
 ###########
 
 USAGE="Usage: `basename $0` [-v] [-p preset] [-m] [-d mic_device] [-mf] [-a audiooffset] [-ab audio_bitrate] [-n window_name] [-c codec] [-vb bitrate] [-r resolution] [-o offset] [-fullscreen] [-s <scale_x>x<scale_y>] [-f framerate] [-q qualitypreset] [-vmic mic_volume] [-vmon monitor_volume] [-t threads ] [-noaudio] [-crf crf] <rtmp url>"
