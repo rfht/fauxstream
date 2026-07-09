@@ -185,7 +185,7 @@ elif $(echo "$videocodec" | egrep -q "(hevc|x265)") ; then
 	no_scenecut="-x265-params no-scenecut=1"
 fi
 
-if $(echo "$filename" | grep -q ^rtmp:) ; then
+if $(echo "$filename" | egrep '^rtmpt?[es]?://') ; then
 	# OTHER POSSIBLE OPTIONS TO TRY FOR $rtmp_conf:
 	# -muxdelay and -muxpreload idea from: https://www.reddit.com/r/ffmpeg/comments/17bx4i7/broken_pipe_conversion_failed_errors_when/
 	# -reconnect and -reconnect_streamed from: https://www.virtvps.com/ffmpeg-conquer-the-frustrating-broken-pipe-er/
