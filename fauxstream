@@ -54,7 +54,7 @@
 # 	encoding H.264 and H.265 (HEVC), but not AV1.
 ###########
 
-USAGE="Usage: `basename $0` [-v] [-p preset] [-m] [-d mic_device] [-mf] [-a audiooffset] [-ab audio_bitrate] [-n window_name] [-c codec] [-vb bitrate] [-r resolution] [-o offset] [-fullscreen] [-s <scale_x>x<scale_y>] [-f framerate] [-q qualitypreset] [-vol volume_adjustment] [-vmic mic_volume] [-vmon monitor_volume] [-t threads ] [-noaudio] [-crf crf] <rtmp url>"
+USAGE="Usage: `basename $0` [-v] [-p preset] [-m] [-d mic_device] [-mf] [-a audiooffset] [-ab audio_bitrate] [-n window_name] [-c codec] [-vb bitrate] [-r resolution] [-o offset] [-fullscreen] [-s <scale_x>x<scale_y>] [-f framerate] [-q qualitypreset] [-vmic mic_volume] [-vmon monitor_volume] [-t threads ] [-noaudio] [-crf crf] <rtmp url>"
 
 audiooffset=0.0
 audio_bitrate=96
@@ -87,7 +87,6 @@ video_bitrate=3500
 video_device=
 video_format=
 video_output_fps=
-volume=1.0
 volume_mic=1.0
 volume_mon=1.0
 windowname=
@@ -127,7 +126,6 @@ do
 		-s) scaleres="$2"; shift;;
 		-t) threads="$2"; shift;;
 		-v) verbose=1;;
-		-vol) volume="$2"; shift;;
 		-vmic) volume_mic="$2"; shift;;
 		-vmon) volume_mon="$2"; shift;;
 		-) filename="$1"; break;;
