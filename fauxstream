@@ -136,6 +136,10 @@ if [[ -z "$filename" ]]; then
 	echo $USAGE; exit 0
 fi
 
+ffmpeg_vers=$(ffmpeg -version | grep 'ffmpeg version ' | cut -d ' ' -f 3)
+ffmpeg_major=$(echo "$ffmpeg_vers" | cut -d . -f 1)
+ffmpeg_minor=$(echo "$ffmpeg_vers" | cut -d . -f 2)
+
 for p in ${preset[@]}; do
 	case "$p" in
 		vaapi) preset_vaapi=1;;
@@ -186,12 +190,16 @@ elif $(echo "$videocodec" | egrep -q "(hevc|x265)") ; then
 fi
 
 if $(echo "$filename" | egrep -q '^rtmpt?[es]?://') ; then
+  rtmp_conf="-rtmp_live live"
+
 	# OTHER POSSIBLE OPTIONS TO TRY FOR $rtmp_conf:
 	# -muxdelay and -muxpreload idea from: https://www.reddit.com/r/ffmpeg/comments/17bx4i7/broken_pipe_conversion_failed_errors_when/
 	# -reconnect and -reconnect_streamed from: https://www.virtvps.com/ffmpeg-conquer-the-frustrating-broken-pipe-er/
 	# tcp_nodelay: see tcp(4)
-	# tcp_keepalive: see SO_KEEPALIVE under getsockopt(2)
-	rtmp_conf="-rtmp_live live -tcp_keepalive 1"
+	# tcp_keepalive: see SO_KEEPALIVE under getsockopt(2) (introduced in ffmpeg 8.1 "Hoare")
+	if [ "$ffmpeg_major" -gt 8 ] || { [ "$ffmpeg_major" -eq 8 ] && [ "$ffmpeg_minor" -ge 1 ]; } ; then
+		rtmp_conf="${rtmp_conf} -tcp_keepalive 1"
+	fi
 fi
 
 bufsize=`expr $video_bitrate \* 2`
