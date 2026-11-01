@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/ksh
 
 ########
 # Copyright (c) 2018-2026 Thomas Frohwein <thfr@openbsd.org>
